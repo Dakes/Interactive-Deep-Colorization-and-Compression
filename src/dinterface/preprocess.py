@@ -2,9 +2,9 @@ import os
 import cv2
 import numpy as np
 
-from src.utils.utils import add_color_pixels_rand_gt, imsegkmeans
+from src.dinterface.utils import add_color_pixels_rand_gt, imsegkmeans
 
-_BASE_PATH = '/home/nikolai10/IdeaProjects/xiao-et-al-remastered-demo/'
+_BASE_PATH = '~/Documents/ICDD/Interactive-Deep-Colorization-and-Compression/'
 
 _IMAGE_COLOR_DIR = 'image_color_dir/'
 _LOCAL_DIR = 'local_dir/'

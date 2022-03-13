@@ -6,6 +6,27 @@ import os
 import tensorflow as tf
 import numpy as np
 
+from src.utils.logger import Logger
+
+_BASE_PATH = '/home/nikolai10/IdeaProjects/xiao-et-al-remastered-demo/'
+
+_IMAGE_COLOR_DIR = _BASE_PATH + 'res/data/image_color_dir'
+_COLOR_MAP_DIR = _BASE_PATH + 'res/data/color_map_dir'
+_THEME_DIR = _BASE_PATH + 'res/data/theme_dir'
+_THEME_MASK_DIR = _BASE_PATH + 'res/data/theme_mask_dir'
+_LOCAL_DIR = _BASE_PATH + 'res/data/local_dir'
+_LOCAL_MASK_DIR = _BASE_PATH + 'res/data/local_mask_dir'
+
+_EVAL_IMG_RGB = _BASE_PATH + 'res/eval/image_color_dir/img_rgb.png'
+_EVAL_THEME_RGB = _BASE_PATH + 'res/eval/theme_dir/img_rgb.png'
+_EVAL_MASK = _BASE_PATH + 'res/eval/theme_mask_dir/img_rgb.png'
+_EVAL_POINTS_RGB = _BASE_PATH + 'res/eval/local_dir/img_rgb.png'
+_EVAL_POINTS_MASK = _BASE_PATH + 'res/eval/local_mask_dir/img_rgb.png'
+
+_LOGS_DIR = _BASE_PATH + '/res/logs/'
+_EXT_LIST = ['png', 'png', 'png', 'png', 'png', 'png']
+_NAME_LIST = ['color img', 'theme img', 'theme mask', 'color_map img', 'local img', 'local mask']
+
 
 # first step: without residual network
 def train1():
@@ -18,27 +39,21 @@ def train1():
     l1 = 0.9
     l2 = 0.1
 
-    # directory of dataset
-    image_color_dir = 'K:\\UserGuide_256\\train\\color_images\\abbey'
-    color_map_dir = 'K:\\UserGuide_256\\train\\color_map\\abbey'
-    theme_dir = 'K:\\UserGuide_256\\train\\color_theme\\abbey'
-    theme_mask_dir = 'K:\\UserGuide_256\\train\\color_theme_mask\\abbey'
-    local_dir = 'K:\\UserGuide_256\\train\\local_points\\abbey'
-    local_mask_dir = 'K:\\UserGuide_256\\train\\local_points_mask\\abbey'
+    sess = tf.compat.v1.Session()
 
     # directory of checkpoint
-    logs_dir = 'logs_1\\'
-
-    sess = tf.Session()
+    logs_dir = _LOGS_DIR + 'run_1/'
+    train_logger = Logger()
+    test_logger = Logger()
+    fw = tf.compat.v1.summary.FileWriter(logs_dir, graph=sess.graph)
 
     # get the training data
     train_list = input_data.get_train_list(
-        [image_color_dir, theme_dir, theme_mask_dir, color_map_dir, local_dir, local_mask_dir],
-        ['color img', 'theme img', 'theme mask', 'color_map img', 'local img', 'local mask'],
-        ['*', '*', 'png', 'png', 'png', 'png'], shuffle=True)
+        [_IMAGE_COLOR_DIR, _THEME_DIR, _THEME_MASK_DIR, _COLOR_MAP_DIR, _LOCAL_DIR, _LOCAL_MASK_DIR],
+        _NAME_LIST, _EXT_LIST, shuffle=True)
 
     image_rgb_batch, theme_rgb_batch, theme_mask_batch, index_rgb_batch, point_rgb_batch, point_mask_batch = \
-        input_data.get_batch(train_list, IMAGE_SIZE, BATCH_SIZE, CAPACITY, True)
+        input_data.get_batch(train_list, (IMAGE_SIZE, IMAGE_SIZE), BATCH_SIZE, CAPACITY, True)
 
     image_lab_batch = input_data.rgb_to_lab(image_rgb_batch)
     image_l_batch = tf.reshape(image_lab_batch[:, :, :, 0] / 100.0 * 2 - 1, [BATCH_SIZE, IMAGE_SIZE, IMAGE_SIZE, 1])
@@ -59,33 +74,42 @@ def train1():
                                       point_ab_batch, point_mask_batch,
                                       is_training=True, scope_name='UserGuide')
 
-    # TODO: envalute
+    # TODO: evaluate
     image_l_test, theme_ab_test, theme_mask_test, point_ab_test, point_mask_test, image_rgb_test, image_gra_test = \
-        input_data.get_eval_img('images/img_rgb.png', 'images/theme_rgb.png', 'images/theme_mask.png',
-                                   'images/points_rgb.png', 'images/points_mask.png')
+        input_data.get_eval_img(_EVAL_IMG_RGB, _EVAL_THEME_RGB, _EVAL_MASK, _EVAL_POINTS_RGB, _EVAL_POINTS_MASK)
     test_ab_out = model.inference3_1(image_l_test, image_gra_test, theme_ab_test, theme_mask_test, point_ab_test,
-                                     point_mask_test,
-                                     is_training=False, scope_name='UserGuide')
+                                     point_mask_test, is_training=False, scope_name='UserGuide')
     test_rgb_out = \
         input_data.lab_to_rgb(tf.concat([(image_l_test + 1.) / 2 * 100., (test_ab_out + 1.) / 2 * 255. - 128], axis=3))
-    test_psnr = 10 * tf.log(1 / (tf.reduce_mean(tf.square(test_rgb_out - image_rgb_test)))) / np.log(10)
+    test_psnr = 10 * tf.math.log(1 / (tf.reduce_mean(input_tensor=tf.square(test_rgb_out - image_rgb_test)))) / np.log(10)
 
-    global_step = tf.train.get_or_create_global_step(sess.graph)
+    global_step = tf.compat.v1.train.get_or_create_global_step(sess.graph)
     # compute the loss
     train_loss, loss_paras = model.loss_colorization(out_ab_batch, image_ab_batch, index_ab_batch, l1, l2)
 
-    var_list = tf.trainable_variables()
-    paras_count = tf.reduce_sum([tf.reduce_prod(v.shape) for v in var_list])
-    print('参数数目:%d' % sess.run(paras_count), end='\n\n')
+    # added by @Nikolai10
+    train_logger.add_summaries([tf.compat.v1.summary.scalar('train/loss_col_total', train_loss)])
+    train_logger.add_summaries([tf.compat.v1.summary.scalar('train/loss_col_1', loss_paras[0])])
+    train_logger.add_summaries([tf.compat.v1.summary.scalar('train/loss_col_2', loss_paras[1])])
+    train_logger.add_summaries([tf.compat.v1.summary.scalar('train/loss_col_3', loss_paras[2])])
+    train_logger.finalize_with_sess(sess)
+
+    test_logger.add_summaries([tf.compat.v1.summary.scalar('test/psnr', test_psnr),
+                               tf.compat.v1.summary.image('test/rgb_out', test_rgb_out)])
+    test_logger.finalize_with_sess(sess)
+
+    var_list = tf.compat.v1.trainable_variables()
+    paras_count = tf.reduce_sum(input_tensor=[tf.reduce_prod(input_tensor=v.shape) for v in var_list])
+    print('#Params:%d' % sess.run(paras_count), end='\n\n')
 
     train_op, learning_rate = model.training(train_loss, global_step, 1e-3, 4e4, 0.7, var_list)
 
-    saver1 = tf.train.Saver(max_to_keep=10)
+    saver1 = tf.compat.v1.train.Saver(max_to_keep=10)
 
-    sess.run(tf.global_variables_initializer())  # Variable initialization
+    sess.run(tf.compat.v1.global_variables_initializer())  # Variable initialization
 
     coord = tf.train.Coordinator()
-    threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+    threads = tf.compat.v1.train.start_queue_runners(sess=sess, coord=coord)
 
     s_t = time.time()
     try:
@@ -97,6 +121,7 @@ def train1():
             _, loss, loss_sub, lr = sess.run([train_op, train_loss, loss_paras, learning_rate])
 
             if step % 100 == 0:
+                train_logger.log().to_tensorboard(fw, step)
                 runtime = time.time() - s_t
                 psnr = sess.run(test_psnr)
                 # record the training process
@@ -113,10 +138,11 @@ def train1():
                 saver1.save(sess, checkpoint_path, global_step=step)
 
             if step % 1000 == 0 or step == MAX_STEP - 1:
+                test_logger.log().to_tensorboard(fw, step)
                 test_out = sess.run(test_rgb_out)
                 test_out = test_out[0]
 
-                save_path = 'logs_output/' + logs_dir   # save results
+                save_path = logs_dir + 'images/'  # save results
                 if not os.path.exists(save_path):
                     os.makedirs(save_path)
                 save_path += 'step_' + str(step) + '.png'
@@ -127,7 +153,7 @@ def train1():
     finally:
         coord.request_stop()
 
-    # 等待线程结束
+    # Wait for the thread to end
     coord.join(threads=threads)
     sess.close()
 
@@ -139,27 +165,22 @@ def train2():
     MAX_STEP = 300001
     IMAGE_SIZE = 256
 
-    # directory of dataset
-    image_color_dir = 'K:\\UserGuide_256\\train\\color_images\\abbey'
-    color_map_dir = 'K:\\UserGuide_256\\train\\color_map\\abbey'
-    theme_dir = 'K:\\UserGuide_256\\train\\color_theme\\abbey'
-    theme_mask_dir = 'K:\\UserGuide_256\\train\\color_theme_mask\\abbey'
-    local_dir = 'K:\\UserGuide_256\\train\\local_points\\abbey'
-    local_mask_dir = 'K:\\UserGuide_256\\train\\local_points_mask\\abbey'
+    sess = tf.compat.v1.Session()
 
     # directory of checkpoint
-    logs_dir = 'logs_2\\'
-
-    sess = tf.Session()
+    logs_ckpts = _LOGS_DIR + 'run_1/'
+    logs_dir = _LOGS_DIR + 'run_2/'
+    train_logger = Logger()
+    test_logger = Logger()
+    fw = tf.compat.v1.summary.FileWriter(logs_dir, graph=sess.graph)
 
     # get the training data
     train_list = input_data.get_train_list(
-        [image_color_dir, theme_dir, theme_mask_dir, color_map_dir, local_dir, local_mask_dir],
-        ['color img', 'theme img', 'theme mask', 'color_map img', 'local img', 'local mask'],
-        ['*', '*', 'png', 'png', 'png', 'png'], shuffle=True)
+        [_IMAGE_COLOR_DIR, _THEME_DIR, _THEME_MASK_DIR, _COLOR_MAP_DIR, _LOCAL_DIR, _LOCAL_MASK_DIR],
+        _NAME_LIST, _EXT_LIST, shuffle=True)
 
     image_rgb_batch, theme_rgb_batch, theme_mask_batch, index_rgb_batch, point_rgb_batch, point_mask_batch = \
-        input_data.get_batch(train_list, IMAGE_SIZE, BATCH_SIZE, CAPACITY, True)
+        input_data.get_batch(train_list, (IMAGE_SIZE, IMAGE_SIZE), BATCH_SIZE, CAPACITY, True)
 
     image_lab_batch = input_data.rgb_to_lab(image_rgb_batch)
     image_l_batch = tf.reshape(image_lab_batch[:, :, :, 0] / 100.0 * 2 - 1, [BATCH_SIZE, IMAGE_SIZE, IMAGE_SIZE, 1])
@@ -177,46 +198,60 @@ def train2():
 
     # TODO: training
     # colorization network
-    out_ab_batch = model.inference3_1(image_l_batch, image_l_gra_batch, theme_ab_batch, theme_mask_batch, point_ab_batch, point_mask_batch,
+    out_ab_batch = model.inference3_1(image_l_batch, image_l_gra_batch, theme_ab_batch, theme_mask_batch,
+                                      point_ab_batch, point_mask_batch,
                                       is_training=False, scope_name='UserGuide')
     # residual network
     _, out_ab_batch2 = model.gen_PRLNet(out_ab_batch, image_l_batch, 2, scope_name='PRLNet')
 
-    # TODO: envalute
+    # TODO: evaluate
     image_l_test, theme_ab_test, theme_mask_test, point_ab_test, point_mask_test, image_rgb_test, image_gra_test = \
-        input_data.get_eval_img('images/img_rgb.png', 'images/theme_rgb.png', 'images/theme_mask.png',
-                                   'images/points_rgb.png', 'images/points_mask.png')
-    test_ab_out = model.inference3_1(image_l_test, image_gra_test, theme_ab_test, theme_mask_test, point_ab_test, point_mask_test,
+        input_data.get_eval_img(_EVAL_IMG_RGB, _EVAL_THEME_RGB, _EVAL_MASK, _EVAL_POINTS_RGB, _EVAL_POINTS_MASK)
+    test_ab_out = model.inference3_1(image_l_test, image_gra_test, theme_ab_test, theme_mask_test, point_ab_test,
+                                     point_mask_test,
                                      is_training=False, scope_name='UserGuide')
     _, test_ab_out2 = model.gen_PRLNet(test_ab_out, image_l_test, 2, scope_name='PRLNet')
     test_rgb_out0 = \
         input_data.lab_to_rgb(tf.concat([(image_l_test + 1.) / 2 * 100., (test_ab_out + 1.) / 2 * 255. - 128], axis=3))
     test_rgb_out = \
         input_data.lab_to_rgb(tf.concat([(image_l_test + 1.) / 2 * 100., (test_ab_out2 + 1.) / 2 * 255. - 128], axis=3))
-    test_psnr0 = 10 * tf.log(1 / (tf.reduce_mean(tf.square(test_rgb_out0 - image_rgb_test)))) / np.log(10)
-    test_psnr = 10 * tf.log(1 / (tf.reduce_mean(tf.square(test_rgb_out - image_rgb_test)))) / np.log(10)
+    test_psnr0 = 10 * tf.math.log(1 / (tf.reduce_mean(input_tensor=tf.square(test_rgb_out0 - image_rgb_test)))) / np.log(10)
+    test_psnr = 10 * tf.math.log(1 / (tf.reduce_mean(input_tensor=tf.square(test_rgb_out - image_rgb_test)))) / np.log(10)
 
     # 训练残差网络
-    var_list = tf.global_variables()
+    var_list = tf.compat.v1.global_variables()
     var_model1 = [var for var in var_list if var.name.startswith('UserGuide')]
     var_model2 = [var for var in var_list if var.name.startswith('PRLNet')]
 
-    paras_count1 = tf.reduce_sum([tf.reduce_prod(v.shape) for v in var_model1])
-    paras_count2 = tf.reduce_sum([tf.reduce_prod(v.shape) for v in var_model2])
+    paras_count1 = tf.reduce_sum(input_tensor=[tf.reduce_prod(input_tensor=v.shape) for v in var_model1])
+    paras_count2 = tf.reduce_sum(input_tensor=[tf.reduce_prod(input_tensor=v.shape) for v in var_model2])
     print('UserGuide参数数目:%d' % sess.run(paras_count1))
     print('Detailed参数数目:%d' % sess.run(paras_count2))
 
-    global_step = tf.train.get_or_create_global_step(sess.graph)
+    global_step = tf.compat.v1.train.get_or_create_global_step(sess.graph)
     train_loss, loss_paras = model.loss_residual(out_ab_batch2, image_ab_batch)
     train_op, learning_rate = model.training(train_loss, global_step, 1e-4, 4e4, 0.7, var_model2)
 
-    saver1 = tf.train.Saver(var_list=var_model1)
-    saver2 = tf.train.Saver(var_list=var_model2)
+    # added by @Nikolai10
+    train_logger.add_summaries([tf.compat.v1.summary.scalar('train/loss_res_total', train_loss)])
+    train_logger.add_summaries([tf.compat.v1.summary.scalar('train/loss_res_1', loss_paras[0])])
+    train_logger.add_summaries([tf.compat.v1.summary.scalar('train/loss_res_2', loss_paras[1])])
+    train_logger.add_summaries([tf.compat.v1.summary.scalar('train/loss_res_3', loss_paras[2])])
+    train_logger.finalize_with_sess(sess)
 
-    sess.run(tf.global_variables_initializer())
+    test_logger.add_summaries([tf.compat.v1.summary.scalar('test/psnr0', test_psnr0),
+                               tf.compat.v1.summary.scalar('test/psnr', test_psnr),
+                               tf.compat.v1.summary.image('test/rgb_out0', test_rgb_out0),
+                               tf.compat.v1.summary.image('test/rgb_out', test_rgb_out)])
+    test_logger.finalize_with_sess(sess)
+
+    saver1 = tf.compat.v1.train.Saver(var_list=var_model1)
+    saver2 = tf.compat.v1.train.Saver(var_list=var_model2)
+
+    sess.run(tf.compat.v1.global_variables_initializer())
 
     print('Loading checkpoint...')
-    ckpt = tf.train.get_checkpoint_state('logs_1')
+    ckpt = tf.train.get_checkpoint_state(logs_ckpts)
     if ckpt and ckpt.model_checkpoint_path:
         global_step = ckpt.model_checkpoint_path.split('/')[-1].split('-')[-1]
         saver1.restore(sess, ckpt.model_checkpoint_path)
@@ -225,7 +260,7 @@ def train2():
         print('Fail')
 
     coord = tf.train.Coordinator()
-    threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+    threads = tf.compat.v1.train.start_queue_runners(sess=sess, coord=coord)
 
     s_t = time.time()
     try:
@@ -237,6 +272,7 @@ def train2():
             _, loss, loss_sub, lr = sess.run([train_op, train_loss, loss_paras, learning_rate])
 
             if step % 100 == 0:
+                train_logger.log().to_tensorboard(fw, step)
                 runtime = time.time() - s_t
                 psnr0, psnr = sess.run([test_psnr0, test_psnr])
                 print('Step: %d, Loss_total: %g, loss1: %g, test_psnr0: %.2fdB, test_psnr: %.2fdB, learning_rate:%g, '
@@ -250,10 +286,11 @@ def train2():
                 saver2.save(sess, checkpoint_path, global_step=step)
 
             if step % 1000 == 0 or step == MAX_STEP - 1:
+                test_logger.log().to_tensorboard(fw, step)
                 test_out = sess.run(test_rgb_out)
                 test_out = test_out[0]
 
-                save_path = 'logs_output/' + logs_dir
+                save_path = logs_dir + 'images/'  # save results
                 if not os.path.exists(save_path):
                     os.makedirs(save_path)
                 save_path += 'step_' + str(step) + '.png'
@@ -264,7 +301,7 @@ def train2():
     finally:
         coord.request_stop()
 
-    # 等待线程结束
+    # Wait for the thread to end
     coord.join(threads=threads)
     sess.close()
 
@@ -280,27 +317,23 @@ def train3():
     l1 = 0.9
     l2 = 0.1
 
-    # directory of dataset
-    image_color_dir = 'K:\\UserGuide_256\\train\\color_images\\abbey'
-    color_map_dir = 'K:\\UserGuide_256\\train\\color_map\\abbey'
-    theme_dir = 'K:\\UserGuide_256\\train\\color_theme\\abbey'
-    theme_mask_dir = 'K:\\UserGuide_256\\train\\color_theme_mask\\abbey'
-    local_dir = 'K:\\UserGuide_256\\train\\local_points\\abbey'
-    local_mask_dir = 'K:\\UserGuide_256\\train\\local_points_mask\\abbey'
+    sess = tf.compat.v1.Session()
 
     # directory of checkpoint
-    logs_dir = 'logs_3\\'
-
-    sess = tf.Session()
+    logs_ckpts_run_1 = _LOGS_DIR + 'run_1/'
+    logs_ckpts_run_2 = _LOGS_DIR + 'run_2/'
+    logs_dir = _LOGS_DIR + 'run_3/'
+    train_logger = Logger()
+    test_logger = Logger()
+    fw = tf.compat.v1.summary.FileWriter(logs_dir, graph=sess.graph)
 
     # get the training data
     train_list = input_data.get_train_list(
-        [image_color_dir, theme_dir, theme_mask_dir, color_map_dir, local_dir, local_mask_dir],
-        ['color img', 'theme img', 'theme mask', 'color_map img', 'local img', 'local mask'],
-        ['*', '*', 'png', 'png', 'png', 'png'], shuffle=True)
+        [_IMAGE_COLOR_DIR, _THEME_DIR, _THEME_MASK_DIR, _COLOR_MAP_DIR, _LOCAL_DIR, _LOCAL_MASK_DIR],
+        _NAME_LIST, _EXT_LIST, shuffle=True)
 
     image_rgb_batch, theme_rgb_batch, theme_mask_batch, index_rgb_batch, point_rgb_batch, point_mask_batch = \
-        input_data.get_batch(train_list, IMAGE_SIZE, BATCH_SIZE, CAPACITY, True)
+        input_data.get_batch(train_list, (IMAGE_SIZE, IMAGE_SIZE), BATCH_SIZE, CAPACITY, True)
 
     image_lab_batch = input_data.rgb_to_lab(image_rgb_batch)
     image_l_batch = tf.reshape(image_lab_batch[:, :, :, 0] / 100.0 * 2 - 1, [BATCH_SIZE, IMAGE_SIZE, IMAGE_SIZE, 1])
@@ -317,47 +350,60 @@ def train3():
     point_ab_batch = (point_lab_batch[:, :, :, 1:] + 128.) / 255.0 * 2 - 1
 
     # TODO: training
-    out_ab_batch = model.inference3_1(image_l_batch, image_l_gra_batch, theme_ab_batch, theme_mask_batch, point_ab_batch, point_mask_batch,
+    out_ab_batch = model.inference3_1(image_l_batch, image_l_gra_batch, theme_ab_batch, theme_mask_batch,
+                                      point_ab_batch, point_mask_batch,
                                       is_training=True, scope_name='UserGuide')
     _, out_ab_batch2 = model.gen_PRLNet(out_ab_batch, image_l_batch, 2, scope_name='PRLNet')
 
     # TODO: envalute
     image_l_test, theme_ab_test, theme_mask_test, point_ab_test, point_mask_test, image_rgb_test, image_gra_test = \
-        input_data.get_eval_img('images/img_rgb.png', 'images/theme_rgb.png', 'images/theme_mask.png',
-                                   'images/points_rgb.png', 'images/points_mask.png')
-    test_ab_out = model.inference3_1(image_l_test, image_gra_test, theme_ab_test, theme_mask_test, point_ab_test, point_mask_test,
+        input_data.get_eval_img(_EVAL_IMG_RGB, _EVAL_THEME_RGB, _EVAL_MASK, _EVAL_POINTS_RGB, _EVAL_POINTS_MASK)
+    test_ab_out = model.inference3_1(image_l_test, image_gra_test, theme_ab_test, theme_mask_test, point_ab_test,
+                                     point_mask_test,
                                      is_training=False, scope_name='UserGuide')
     _, test_ab_out2 = model.gen_PRLNet(test_ab_out, image_l_test, 2, scope_name='PRLNet')
     test_rgb_out0 = \
         input_data.lab_to_rgb(tf.concat([(image_l_test + 1.) / 2 * 100., (test_ab_out + 1.) / 2 * 255. - 128], axis=3))
     test_rgb_out = \
         input_data.lab_to_rgb(tf.concat([(image_l_test + 1.) / 2 * 100., (test_ab_out2 + 1.) / 2 * 255. - 128], axis=3))
-    test_psnr0 = 10 * tf.log(1 / (tf.reduce_mean(tf.square(test_rgb_out0 - image_rgb_test)))) / np.log(10)
-    test_psnr = 10 * tf.log(1 / (tf.reduce_mean(tf.square(test_rgb_out - image_rgb_test)))) / np.log(10)
+    test_psnr0 = 10 * tf.math.log(1 / (tf.reduce_mean(input_tensor=tf.square(test_rgb_out0 - image_rgb_test)))) / np.log(10)
+    test_psnr = 10 * tf.math.log(1 / (tf.reduce_mean(input_tensor=tf.square(test_rgb_out - image_rgb_test)))) / np.log(10)
 
-    var_list = tf.global_variables()
+    var_list = tf.compat.v1.global_variables()
     var_model1 = [var for var in var_list if var.name.startswith('UserGuide')]
     var_model2 = [var for var in var_list if var.name.startswith('PRLNet')]
     var_total = var_model1 + var_model2
-    paras_count1 = tf.reduce_sum([tf.reduce_prod(v.shape) for v in var_model1])
-    paras_count2 = tf.reduce_sum([tf.reduce_prod(v.shape) for v in var_model2])
+    paras_count1 = tf.reduce_sum(input_tensor=[tf.reduce_prod(input_tensor=v.shape) for v in var_model1])
+    paras_count2 = tf.reduce_sum(input_tensor=[tf.reduce_prod(input_tensor=v.shape) for v in var_model2])
     print('UserGuide参数数目:%d' % sess.run(paras_count1))
     print('Detailed参数数目:%d' % sess.run(paras_count2))
 
-    global_step = tf.train.get_or_create_global_step(sess.graph)
+    global_step = tf.compat.v1.train.get_or_create_global_step(sess.graph)
     # the loss function
-    loss1, _ = model.loss_colorization(out_ab_batch2, image_ab_batch, index_ab_batch, l1, l2)
-    loss2, _ = model.loss_residual(out_ab_batch, image_ab_batch)
+    # potential error!
+    loss1, _ = model.loss_colorization(out_ab_batch, image_ab_batch, index_ab_batch, l1, l2)
+    loss2, _ = model.loss_residual(out_ab_batch2, image_ab_batch)
     total_loss = loss1 + loss2
     train_op, learning_rate = model.training(total_loss, global_step, 1e-3, 4e4, 0.7, var_total)
 
-    saver1 = tf.train.Saver(var_list=var_model1)
-    saver2 = tf.train.Saver(var_list=var_model2)
-    saver3 = tf.train.Saver(var_list=var_total)
+    # added by @Nikolai10
+    train_logger.add_summaries([tf.compat.v1.summary.scalar('train/loss_total', total_loss),
+                                tf.compat.v1.summary.scalar('train/loss_col_total', loss1),
+                                tf.compat.v1.summary.scalar('train/loss_res_total', loss2)])
+    train_logger.finalize_with_sess(sess)
+    test_logger.add_summaries([tf.compat.v1.summary.scalar('test/psnr0', test_psnr0),
+                               tf.compat.v1.summary.scalar('test/psnr', test_psnr),
+                               tf.compat.v1.summary.image('test/rgb_out0', test_rgb_out0),
+                               tf.compat.v1.summary.image('test/rgb_out', test_rgb_out)])
+    test_logger.finalize_with_sess(sess)
 
-    sess.run(tf.global_variables_initializer())  # 变量初始化
-    print('载入检查点...')
-    ckpt = tf.train.get_checkpoint_state('logs_1')
+    saver1 = tf.compat.v1.train.Saver(var_list=var_model1)
+    saver2 = tf.compat.v1.train.Saver(var_list=var_model2)
+    saver3 = tf.compat.v1.train.Saver(var_list=var_total)
+
+    sess.run(tf.compat.v1.global_variables_initializer())  # 变量初始化
+    print('Loading checkpoint...')
+    ckpt = tf.train.get_checkpoint_state(logs_ckpts_run_1)
     if ckpt and ckpt.model_checkpoint_path:
         global_step = ckpt.model_checkpoint_path.split('/')[-1].split('-')[-1]
         saver1.restore(sess, ckpt.model_checkpoint_path)
@@ -365,7 +411,7 @@ def train3():
     else:
         print('载入失败')
 
-    ckpt = tf.train.get_checkpoint_state('logs_2')
+    ckpt = tf.train.get_checkpoint_state(logs_ckpts_run_2)
     if ckpt and ckpt.model_checkpoint_path:
         global_step = ckpt.model_checkpoint_path.split('/')[-1].split('-')[-1]
         saver2.restore(sess, ckpt.model_checkpoint_path)
@@ -374,7 +420,7 @@ def train3():
         print('载入失败')
 
     coord = tf.train.Coordinator()
-    threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+    threads = tf.compat.v1.train.start_queue_runners(sess=sess, coord=coord)
 
     s_t = time.time()
     try:
@@ -386,11 +432,12 @@ def train3():
             _, loss, lr = sess.run([train_op, total_loss, learning_rate])
 
             if step % 100 == 0:
+                train_logger.log().to_tensorboard(fw, step)
                 runtime = time.time() - s_t
                 psnr0, psnr = sess.run([test_psnr0, test_psnr])
                 print('Step: %d, Loss_total: %g, test_psnr0: %.2fdB, test_psnr: %.2fdB, learning_rate:%g, '
                       'time:%.2fs, time left: %.2fhours'
-                      % (step, loss,  psnr0, psnr, lr, runtime, (MAX_STEP - step) * runtime / 360000))
+                      % (step, loss, psnr0, psnr, lr, runtime, (MAX_STEP - step) * runtime / 360000))
                 s_t = time.time()
 
             if step % 10000 == 0 or step == MAX_STEP - 1:
@@ -400,10 +447,11 @@ def train3():
                 saver3.save(sess, checkpoint_path, global_step=step)
 
             if step % 1000 == 0 or step == MAX_STEP - 1:
+                test_logger.log().to_tensorboard(fw, step)
                 test_out = sess.run(test_rgb_out)
                 test_out = test_out[0]
 
-                save_path = 'images/logs_output/' + logs_dir
+                save_path = logs_dir + 'images/'  # save results
                 if not os.path.exists(save_path):
                     os.makedirs(save_path)
                 save_path += 'step_' + str(step) + '.png'
@@ -414,10 +462,12 @@ def train3():
     finally:
         coord.request_stop()
 
-    # 等待线程结束
+    # Wait for the thread to end
     coord.join(threads=threads)
     sess.close()
 
 
 if __name__ == '__main__':
+    #train1()
+    #train2()
     train3()

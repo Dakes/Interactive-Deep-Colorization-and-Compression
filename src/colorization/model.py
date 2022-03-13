@@ -1,13 +1,13 @@
-from ops import *
-
+from src.colorization.ops import *
+from src.colorization.ms_ssim import *
 
 def sobel(image_batch):
     sobel_x = tf.constant([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], tf.float32)
     sobel_x_filter = tf.reshape(sobel_x, [3, 3, 1, 1])
     sobel_y = tf.constant([[-1, -2, -1], [0, 0, 0], [1, 2, 1]], tf.float32)
     sobel_y_filter = tf.reshape(sobel_y, [3, 3, 1, 1])
-    filtered_x = tf.nn.conv2d(image_batch, sobel_x_filter, strides=[1, 1, 1, 1], padding='SAME')
-    filtered_y = tf.nn.conv2d(image_batch, sobel_y_filter, strides=[1, 1, 1, 1], padding='SAME')
+    filtered_x = tf.nn.conv2d(input=image_batch, filters=sobel_x_filter, strides=[1, 1, 1, 1], padding='SAME')
+    filtered_y = tf.nn.conv2d(input=image_batch, filters=sobel_y_filter, strides=[1, 1, 1, 1], padding='SAME')
     fileterd_xy = tf.sqrt(tf.square(filtered_x) + tf.square(filtered_y))
     return fileterd_xy
 
@@ -17,8 +17,8 @@ def sobel2(image_batch):
     sobel_x_filter = tf.reshape(sobel_x, [3, 3, 1, 1])
     sobel_y = tf.constant([[-1, -2, -1], [0, 0, 0], [1, 2, 1]], tf.float32)
     sobel_y_filter = tf.reshape(sobel_y, [3, 3, 1, 1])
-    filtered_x = tf.nn.conv2d(image_batch, sobel_x_filter, strides=[1, 1, 1, 1], padding='SAME')
-    filtered_y = tf.nn.conv2d(image_batch, sobel_y_filter, strides=[1, 1, 1, 1], padding='SAME')
+    filtered_x = tf.nn.conv2d(input=image_batch, filters=sobel_x_filter, strides=[1, 1, 1, 1], padding='SAME')
+    filtered_y = tf.nn.conv2d(input=image_batch, filters=sobel_y_filter, strides=[1, 1, 1, 1], padding='SAME')
     # fileterd_xy = tf.sqrt(tf.square(filtered_x) + tf.square(filtered_y))
     return [filtered_x, filtered_y]
 
@@ -40,15 +40,15 @@ def get_sobel_batch(image_batch):
 
 # the loss of colorization network
 def loss_colorization(out_ab_batch, color_ab_batch, index_ab_batch, l1, l2):
-    with tf.name_scope('loss_colorization'):
+    with tf.compat.v1.name_scope('loss_colorization'):
         # Lgt: the ground truth loss
-        loss1 = tf.losses.huber_loss(out_ab_batch, color_ab_batch) * l1
+        loss1 = tf.compat.v1.losses.huber_loss(out_ab_batch, color_ab_batch) * l1
         # Lgl: the difference of color themes between the generated ab channels and the input color themes
-        loss2 = tf.losses.huber_loss(out_ab_batch, index_ab_batch) * l2
+        loss2 = tf.compat.v1.losses.huber_loss(out_ab_batch, index_ab_batch) * l2
         # Lst: the gradient loss
         gra_out_ab = get_sobel_batch(out_ab_batch)
         gra_color_ab = get_sobel_batch(color_ab_batch)
-        loss3 = tf.reduce_mean(tf.square(gra_out_ab - gra_color_ab)) * 10
+        loss3 = tf.reduce_mean(input_tensor=tf.square(gra_out_ab - gra_color_ab)) * 10
 
         loss_total = loss1 + loss2 + loss3
         return loss_total, [loss1, loss2, loss3]
@@ -56,16 +56,25 @@ def loss_colorization(out_ab_batch, color_ab_batch, index_ab_batch, l1, l2):
 
 # the loss of residual network
 def loss_residual(out_ab_batch, color_ab_batch):
-    with tf.name_scope('losses_residual'):
-        loss4 = tf.reduce_mean(tf.abs(out_ab_batch - color_ab_batch))
+    with tf.compat.v1.name_scope('losses_residual'):
+        loss4 = tf.reduce_mean(input_tensor=tf.abs(out_ab_batch - color_ab_batch))
+        return loss4, [tf.constant(0.0), tf.constant(0.0), tf.constant(0.0), tf.constant(0.0)]
+
+
+def loss_residual_ms_ssim(out_ab_batch, color_ab_batch):
+    with tf.compat.v1.name_scope('losses_residual_ms_ssim'):
+        out_ab_batch = (out_ab_batch + 1) / 2.0
+        color_ab_batch = (color_ab_batch + 1) / 2.0
+        # ms_ssim_v2.MultiScaleSSIM(inp, otp, max_val=1, data_format='NCHW', name='MS-SSIM')
+        loss4 = 1 - MultiScaleSSIM(color_ab_batch, out_ab_batch, max_val=1, data_format='NHWC', name='MS-SSIM')
         return loss4, [tf.constant(0.0), tf.constant(0.0), tf.constant(0.0), tf.constant(0.0)]
 
 
 def training(loss, global_step, start_learning_rate, decay_steps, decay_rate, var_list):
-    update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+    update_ops = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS)
     with tf.control_dependencies(update_ops):
-        lr = tf.train.exponential_decay(start_learning_rate, global_step, decay_steps, decay_rate, staircase=True)
-        optimizer = tf.train.AdamOptimizer(lr)
+        lr = tf.compat.v1.train.exponential_decay(start_learning_rate, global_step, decay_steps, decay_rate, staircase=True)
+        optimizer = tf.compat.v1.train.AdamOptimizer(lr)
         train_op = optimizer.minimize(loss, global_step=global_step, var_list=var_list)
 
     return train_op, lr
@@ -73,7 +82,7 @@ def training(loss, global_step, start_learning_rate, decay_steps, decay_rate, va
 
 # colorization network without gradient
 def inference3(img_l_batch, theme_ab_batch, theme_mask_batch, local_ab_batch, local_mask_batch,
-                 is_training=True, scope_name='UG'):
+               is_training=True, scope_name='UG'):
     """
     :param img_l_batch:     the L-channel of input images, [N, H, W, 1]
     :param local_ab_batch:  the ab-channel of local points, [N, H, W, 2]
@@ -96,21 +105,21 @@ def inference3(img_l_batch, theme_ab_batch, theme_mask_batch, local_ab_batch, lo
     print('Local Inputs:', local_batch)
     print()
 
-    with tf.variable_scope(scope_name, reuse=tf.AUTO_REUSE):
+    with tf.compat.v1.variable_scope(scope_name, reuse=tf.compat.v1.AUTO_REUSE):
         print('ThemeBlock')
         theme_batch = tf.reshape(theme_batch, [img_l_batch.get_shape()[0], 1, 1, -1])
         print(theme_batch)
         glob_conv1 = conv2d(theme_batch, ngf * 8, 1, 1, activation_fn=tf.nn.relu,
-                            norm_fn=tf.layers.batch_normalization, is_training=is_training, scope_name='glob_conv1')
+                            norm_fn=tf.compat.v1.layers.batch_normalization, is_training=is_training, scope_name='glob_conv1')
         print(glob_conv1)
         glob_conv2 = conv2d(glob_conv1, ngf * 8, 1, 1, activation_fn=tf.nn.relu,
-                            norm_fn=tf.layers.batch_normalization, is_training=is_training, scope_name='glob_conv2')
+                            norm_fn=tf.compat.v1.layers.batch_normalization, is_training=is_training, scope_name='glob_conv2')
         print(glob_conv2)
         glob_conv3 = conv2d(glob_conv2, ngf * 8, 1, 1, activation_fn=tf.nn.relu,
-                            norm_fn=tf.layers.batch_normalization, is_training=is_training, scope_name='glob_conv3')
+                            norm_fn=tf.compat.v1.layers.batch_normalization, is_training=is_training, scope_name='glob_conv3')
         print(glob_conv3)
         glob_conv4 = conv2d(glob_conv3, ngf * 8, 1, 1, activation_fn=tf.nn.relu,
-                            norm_fn=tf.layers.batch_normalization, is_training=is_training, scope_name='glob_conv4')
+                            norm_fn=tf.compat.v1.layers.batch_normalization, is_training=is_training, scope_name='glob_conv4')
         print(glob_conv4, end='\n\n')
 
         print('LocalBlock')
@@ -127,7 +136,7 @@ def inference3(img_l_batch, theme_ab_batch, theme_mask_batch, local_ab_batch, lo
                          norm_fn=None, is_training=is_training, scope_name='conv1_1')
         print(conv1_1)
         conv1_2 = conv2d(conv1_1, ngf, 3, 1, activation_fn=tf.nn.relu,
-                         norm_fn=tf.layers.batch_normalization, is_training=is_training, scope_name='conv1_2')
+                         norm_fn=tf.compat.v1.layers.batch_normalization, is_training=is_training, scope_name='conv1_2')
         print(conv1_2)
         conv1_2_ss = depth_wise_conv2d(conv1_2, 1, 1, 2, activation_fn=None, scope_name='conv1_2_ss')
         print(conv1_2_ss, end='\n\n')
@@ -137,7 +146,7 @@ def inference3(img_l_batch, theme_ab_batch, theme_mask_batch, local_ab_batch, lo
                          norm_fn=None, is_training=is_training, scope_name='conv2_1')
         print(conv2_1)
         conv2_2 = conv2d(conv2_1, ngf * 2, 3, 1, activation_fn=tf.nn.relu,
-                         norm_fn=tf.layers.batch_normalization, is_training=is_training, scope_name='conv2_2')
+                         norm_fn=tf.compat.v1.layers.batch_normalization, is_training=is_training, scope_name='conv2_2')
         print(conv2_2)
         conv2_2_ss = depth_wise_conv2d(conv2_2, 1, 1, 2, activation_fn=None, scope_name='conv2_2_ss')
         print(conv2_2_ss, end='\n\n')
@@ -150,7 +159,7 @@ def inference3(img_l_batch, theme_ab_batch, theme_mask_batch, local_ab_batch, lo
                          norm_fn=None, is_training=is_training, scope_name='conv3_2')
         print(conv3_2)
         conv3_3 = conv2d(conv3_2, ngf * 4, 3, 1, activation_fn=tf.nn.relu,
-                         norm_fn=tf.layers.batch_normalization, is_training=is_training, scope_name='conv3_3')
+                         norm_fn=tf.compat.v1.layers.batch_normalization, is_training=is_training, scope_name='conv3_3')
         print(conv3_3)
         conv3_3_ss = depth_wise_conv2d(conv3_3, 1, 1, 2, activation_fn=None, scope_name='conv3_3_ss')
         print(conv3_3_ss, end='\n\n')
@@ -163,7 +172,7 @@ def inference3(img_l_batch, theme_ab_batch, theme_mask_batch, local_ab_batch, lo
                          norm_fn=None, is_training=is_training, scope_name='conv4_2')
         print(conv4_2)
         conv4_3 = conv2d(conv4_2, ngf * 8, 3, 1, activation_fn=tf.nn.relu,
-                         norm_fn=tf.layers.batch_normalization, is_training=is_training, scope_name='conv4_3')
+                         norm_fn=tf.compat.v1.layers.batch_normalization, is_training=is_training, scope_name='conv4_3')
         print(conv4_3, end='\n\n')
 
         print('ConvBlock 5')
@@ -175,7 +184,7 @@ def inference3(img_l_batch, theme_ab_batch, theme_mask_batch, local_ab_batch, lo
                          norm_fn=None, is_training=is_training, scope_name='conv5_2')
         print(conv5_2)
         conv5_3 = conv2d(conv5_2, ngf * 8, 3, 1, dilation=2, activation_fn=tf.nn.relu,
-                         norm_fn=tf.layers.batch_normalization, is_training=is_training, scope_name='conv5_3')
+                         norm_fn=tf.compat.v1.layers.batch_normalization, is_training=is_training, scope_name='conv5_3')
         print(conv5_3, end='\n\n')
 
         print('ConvBlock 6')
@@ -186,7 +195,7 @@ def inference3(img_l_batch, theme_ab_batch, theme_mask_batch, local_ab_batch, lo
                          norm_fn=None, is_training=is_training, scope_name='conv6_2')
         print(conv6_2)
         conv6_3 = conv2d(conv6_2, ngf * 8, 3, 1, dilation=2, activation_fn=tf.nn.relu,
-                         norm_fn=tf.layers.batch_normalization, is_training=is_training, scope_name='conv6_3')
+                         norm_fn=tf.compat.v1.layers.batch_normalization, is_training=is_training, scope_name='conv6_3')
         print(conv6_3, end='\n\n')
 
         print('ConvBlock 7')
@@ -197,7 +206,7 @@ def inference3(img_l_batch, theme_ab_batch, theme_mask_batch, local_ab_batch, lo
                          norm_fn=None, is_training=is_training, scope_name='conv7_2')
         print(conv7_2)
         conv7_3 = conv2d(conv7_2, ngf * 8, 3, 1, activation_fn=tf.nn.relu,
-                         norm_fn=tf.layers.batch_normalization, is_training=is_training, scope_name='conv7_3')
+                         norm_fn=tf.compat.v1.layers.batch_normalization, is_training=is_training, scope_name='conv7_3')
         print(conv7_3, end='\n\n')
 
         print('ConvBlock 8')
@@ -211,7 +220,7 @@ def inference3(img_l_batch, theme_ab_batch, theme_mask_batch, local_ab_batch, lo
                          norm_fn=None, is_training=is_training, scope_name='conv8_2')
         print(conv8_2)
         conv8_3 = conv2d(conv8_2, ngf * 4, 3, 1, activation_fn=tf.nn.relu,
-                         norm_fn=tf.layers.batch_normalization, is_training=is_training, scope_name='conv8_3')
+                         norm_fn=tf.compat.v1.layers.batch_normalization, is_training=is_training, scope_name='conv8_3')
         print(conv8_3, end='\n\n')
 
         print('ConvBlock 9')
@@ -222,7 +231,7 @@ def inference3(img_l_batch, theme_ab_batch, theme_mask_batch, local_ab_batch, lo
         conv9_1_comb = tf.nn.relu(conv2_2_short + conv9_1)
         print(conv9_1_comb)
         conv9_2 = conv2d(conv9_1_comb, ngf * 2, 3, 1, activation_fn=tf.nn.relu,
-                         norm_fn=tf.layers.batch_normalization, is_training=is_training, scope_name='conv9_2')
+                         norm_fn=tf.compat.v1.layers.batch_normalization, is_training=is_training, scope_name='conv9_2')
         print(conv9_2, end='\n\n')
 
         print('ConvBlock 10')
@@ -233,7 +242,7 @@ def inference3(img_l_batch, theme_ab_batch, theme_mask_batch, local_ab_batch, lo
         conv10_1_comb = tf.nn.relu(conv1_2_short + conv10_1)
         print(conv10_1_comb)
         conv10_2 = conv2d(conv10_1_comb, ngf * 2, 3, 1, activation_fn=tf.nn.relu,
-                          norm_fn=tf.layers.batch_normalization, is_training=is_training, scope_name='conv10_2')
+                          norm_fn=tf.compat.v1.layers.batch_normalization, is_training=is_training, scope_name='conv10_2')
         print(conv10_2, end='\n\n')
 
         print('OutputBlock')
@@ -270,21 +279,21 @@ def inference3_1(img_l_batch, img_l_gra_batch, theme_ab_batch, theme_mask_batch,
     print('Local Inputs:', local_batch)
     print()
 
-    with tf.variable_scope(scope_name, reuse=tf.AUTO_REUSE):
+    with tf.compat.v1.variable_scope(scope_name, reuse=tf.compat.v1.AUTO_REUSE):
         print('ThemeBlock')
         theme_batch = tf.reshape(theme_batch, [img_l_batch.get_shape()[0], 1, 1, -1])
         print(theme_batch)
         glob_conv1 = conv2d(theme_batch, ngf * 8, 1, 1, activation_fn=tf.nn.relu,
-                            norm_fn=tf.layers.batch_normalization, is_training=is_training, scope_name='glob_conv1')
+                            norm_fn=tf.compat.v1.layers.batch_normalization, is_training=is_training, scope_name='glob_conv1')
         print(glob_conv1)
         glob_conv2 = conv2d(glob_conv1, ngf * 8, 1, 1, activation_fn=tf.nn.relu,
-                            norm_fn=tf.layers.batch_normalization, is_training=is_training, scope_name='glob_conv2')
+                            norm_fn=tf.compat.v1.layers.batch_normalization, is_training=is_training, scope_name='glob_conv2')
         print(glob_conv2)
         glob_conv3 = conv2d(glob_conv2, ngf * 8, 1, 1, activation_fn=tf.nn.relu,
-                            norm_fn=tf.layers.batch_normalization, is_training=is_training, scope_name='glob_conv3')
+                            norm_fn=tf.compat.v1.layers.batch_normalization, is_training=is_training, scope_name='glob_conv3')
         print(glob_conv3)
         glob_conv4 = conv2d(glob_conv3, ngf * 8, 1, 1, activation_fn=tf.nn.relu,
-                            norm_fn=tf.layers.batch_normalization, is_training=is_training, scope_name='glob_conv4')
+                            norm_fn=tf.compat.v1.layers.batch_normalization, is_training=is_training, scope_name='glob_conv4')
         print(glob_conv4, end='\n\n')
 
         print('LocalBlock')
@@ -304,7 +313,7 @@ def inference3_1(img_l_batch, img_l_gra_batch, theme_ab_batch, theme_mask_batch,
                          norm_fn=None, is_training=is_training, scope_name='conv1_1')
         print(conv1_1)
         conv1_2 = conv2d(conv1_1, ngf, 3, 1, activation_fn=tf.nn.relu,
-                         norm_fn=tf.layers.batch_normalization, is_training=is_training, scope_name='conv1_2')
+                         norm_fn=tf.compat.v1.layers.batch_normalization, is_training=is_training, scope_name='conv1_2')
         print(conv1_2)
         conv1_2_ss = depth_wise_conv2d(conv1_2, 1, 1, 2, activation_fn=None, scope_name='conv1_2_ss')
         print(conv1_2_ss, end='\n\n')
@@ -314,7 +323,7 @@ def inference3_1(img_l_batch, img_l_gra_batch, theme_ab_batch, theme_mask_batch,
                          norm_fn=None, is_training=is_training, scope_name='conv2_1')
         print(conv2_1)
         conv2_2 = conv2d(conv2_1, ngf * 2, 3, 1, activation_fn=tf.nn.relu,
-                         norm_fn=tf.layers.batch_normalization, is_training=is_training, scope_name='conv2_2')
+                         norm_fn=tf.compat.v1.layers.batch_normalization, is_training=is_training, scope_name='conv2_2')
         print(conv2_2)
         conv2_2_ss = depth_wise_conv2d(conv2_2, 1, 1, 2, activation_fn=None, scope_name='conv2_2_ss')
         print(conv2_2_ss, end='\n\n')
@@ -327,7 +336,7 @@ def inference3_1(img_l_batch, img_l_gra_batch, theme_ab_batch, theme_mask_batch,
                          norm_fn=None, is_training=is_training, scope_name='conv3_2')
         print(conv3_2)
         conv3_3 = conv2d(conv3_2, ngf * 4, 3, 1, activation_fn=tf.nn.relu,
-                         norm_fn=tf.layers.batch_normalization, is_training=is_training, scope_name='conv3_3')
+                         norm_fn=tf.compat.v1.layers.batch_normalization, is_training=is_training, scope_name='conv3_3')
         print(conv3_3)
         conv3_3_ss = depth_wise_conv2d(conv3_3, 1, 1, 2, activation_fn=None, scope_name='conv3_3_ss')
         print(conv3_3_ss, end='\n\n')
@@ -340,7 +349,7 @@ def inference3_1(img_l_batch, img_l_gra_batch, theme_ab_batch, theme_mask_batch,
                          norm_fn=None, is_training=is_training, scope_name='conv4_2')
         print(conv4_2)
         conv4_3 = conv2d(conv4_2, ngf * 8, 3, 1, activation_fn=tf.nn.relu,
-                         norm_fn=tf.layers.batch_normalization, is_training=is_training, scope_name='conv4_3')
+                         norm_fn=tf.compat.v1.layers.batch_normalization, is_training=is_training, scope_name='conv4_3')
         print(conv4_3, end='\n\n')
 
         print('ConvBlock 5')
@@ -352,7 +361,7 @@ def inference3_1(img_l_batch, img_l_gra_batch, theme_ab_batch, theme_mask_batch,
                          norm_fn=None, is_training=is_training, scope_name='conv5_2')
         print(conv5_2)
         conv5_3 = conv2d(conv5_2, ngf * 8, 3, 1, dilation=2, activation_fn=tf.nn.relu,
-                         norm_fn=tf.layers.batch_normalization, is_training=is_training, scope_name='conv5_3')
+                         norm_fn=tf.compat.v1.layers.batch_normalization, is_training=is_training, scope_name='conv5_3')
         print(conv5_3, end='\n\n')
 
         print('ConvBlock 6')
@@ -363,7 +372,7 @@ def inference3_1(img_l_batch, img_l_gra_batch, theme_ab_batch, theme_mask_batch,
                          norm_fn=None, is_training=is_training, scope_name='conv6_2')
         print(conv6_2)
         conv6_3 = conv2d(conv6_2, ngf * 8, 3, 1, dilation=2, activation_fn=tf.nn.relu,
-                         norm_fn=tf.layers.batch_normalization, is_training=is_training, scope_name='conv6_3')
+                         norm_fn=tf.compat.v1.layers.batch_normalization, is_training=is_training, scope_name='conv6_3')
         print(conv6_3, end='\n\n')
 
         print('ConvBlock 7')
@@ -374,7 +383,7 @@ def inference3_1(img_l_batch, img_l_gra_batch, theme_ab_batch, theme_mask_batch,
                          norm_fn=None, is_training=is_training, scope_name='conv7_2')
         print(conv7_2)
         conv7_3 = conv2d(conv7_2, ngf * 8, 3, 1, activation_fn=tf.nn.relu,
-                         norm_fn=tf.layers.batch_normalization, is_training=is_training, scope_name='conv7_3')
+                         norm_fn=tf.compat.v1.layers.batch_normalization, is_training=is_training, scope_name='conv7_3')
         print(conv7_3, end='\n\n')
 
         print('ConvBlock 8')
@@ -388,7 +397,7 @@ def inference3_1(img_l_batch, img_l_gra_batch, theme_ab_batch, theme_mask_batch,
                          norm_fn=None, is_training=is_training, scope_name='conv8_2')
         print(conv8_2)
         conv8_3 = conv2d(conv8_2, ngf * 4, 3, 1, activation_fn=tf.nn.relu,
-                         norm_fn=tf.layers.batch_normalization, is_training=is_training, scope_name='conv8_3')
+                         norm_fn=tf.compat.v1.layers.batch_normalization, is_training=is_training, scope_name='conv8_3')
         print(conv8_3, end='\n\n')
 
         print('ConvBlock 9')
@@ -399,7 +408,7 @@ def inference3_1(img_l_batch, img_l_gra_batch, theme_ab_batch, theme_mask_batch,
         conv9_1_comb = tf.nn.relu(conv2_2_short + conv9_1)
         print(conv9_1_comb)
         conv9_2 = conv2d(conv9_1_comb, ngf * 2, 3, 1, activation_fn=tf.nn.relu,
-                         norm_fn=tf.layers.batch_normalization, is_training=is_training, scope_name='conv9_2')
+                         norm_fn=tf.compat.v1.layers.batch_normalization, is_training=is_training, scope_name='conv9_2')
         print(conv9_2, end='\n\n')
 
         print('ConvBlock 10')
@@ -410,7 +419,7 @@ def inference3_1(img_l_batch, img_l_gra_batch, theme_ab_batch, theme_mask_batch,
         conv10_1_comb = tf.nn.relu(conv1_2_short + conv10_1)
         print(conv10_1_comb)
         conv10_2 = conv2d(conv10_1_comb, ngf * 2, 3, 1, activation_fn=tf.nn.relu,
-                          norm_fn=tf.layers.batch_normalization, is_training=is_training, scope_name='conv10_2')
+                          norm_fn=tf.compat.v1.layers.batch_normalization, is_training=is_training, scope_name='conv10_2')
         print(conv10_2, end='\n\n')
 
         print('OutputBlock')
@@ -422,18 +431,18 @@ def inference3_1(img_l_batch, img_l_gra_batch, theme_ab_batch, theme_mask_batch,
 
 
 def Conv2d(batch_input, n_fiter, filter_size, strides, act=None, padding='SAME', name='conv'):
-    with tf.variable_scope(name):
+    with tf.compat.v1.variable_scope(name):
         in_channels = batch_input.get_shape()[3]
-        filters = tf.get_variable('filter', [filter_size, filter_size, in_channels, n_fiter], dtype=tf.float32,
-                                  initializer=tf.random_normal_initializer(0, 0.02))
-        conv = tf.nn.conv2d(batch_input, filters, [1, strides, strides, 1], padding=padding)
+        filters = tf.compat.v1.get_variable('filter', [filter_size, filter_size, in_channels, n_fiter], dtype=tf.float32,
+                                  initializer=tf.compat.v1.random_normal_initializer(0, 0.02))
+        conv = tf.nn.conv2d(input=batch_input, filters=filters, strides=[1, strides, strides, 1], padding=padding)
         if act is not None:
             conv = act(conv)
         return conv
 
 
 def Elementwise(n1, n2, act, name):
-    with tf.variable_scope(name):
+    with tf.compat.v1.variable_scope(name):
         return act(n1, n2)
 
 
@@ -442,7 +451,7 @@ def gen_PRLNet(content_map, inputs, out_channels, scope_name='PRLNet'):
     # content_map = content_map * 2. - 1
     # inputs = inputs * 2. - 1
 
-    with tf.variable_scope(scope_name, reuse=tf.AUTO_REUSE):
+    with tf.compat.v1.variable_scope(scope_name, reuse=tf.compat.v1.AUTO_REUSE):
         # ------------------------------ Detail Generation ------------------------------
         fussion = tf.concat([content_map, inputs], axis=3)
         n = Conv2d(fussion, 64, filter_size=3, strides=1, padding='SAME', name='n64s1/c')

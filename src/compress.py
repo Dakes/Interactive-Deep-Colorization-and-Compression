@@ -15,11 +15,11 @@ class Compressor(object):
 
     def main(self):
         parser = argparse.ArgumentParser(
-            prog='Compressor',
-            description='Compresses and Decompresses Images using ML grayscale Compression and Colorization. ')
+            prog="Compressor",
+            description="Compresses and Decompresses Images using ML grayscale Compression and Colorization. ")
         parser.add_argument(
-            '-d', '--decompress', action='store_true', dest='decompress', type=str,
-            help='Decompress only. ')
+            "-d", "--decompress", action="store_true", dest="decompress", type=str,
+            help="Decompress only. ")
 
         self.args = parser.parse_args()
 

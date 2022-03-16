@@ -33,6 +33,7 @@ class Colorizer(object):
         self.compress = self.args.compress
 
     def color_cue_gen(self):
+        # TODO: put color cue gen in own function in preprocess
         pass
 
     def recolorize(self):

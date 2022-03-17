@@ -1,4 +1,4 @@
-import src.dinterface.imagenet as imagenet
+import src.compression.dinterface.imagenet as imagenet
 
 
 def init_reading(input, output, target_size):
@@ -11,7 +11,7 @@ def init_reading(input, output, target_size):
     :return:
 
     """
-    if 'leftImg8bit' in input:
+    if 'imagenet' in input:
         # convert imagenet Dataset
         imagenet.convert_to_gan_reading_format_save(input + 'train/', output + 'train/', target_size)
         imagenet.convert_to_gan_reading_format_save(input + 'val/', output + 'val/', target_size)

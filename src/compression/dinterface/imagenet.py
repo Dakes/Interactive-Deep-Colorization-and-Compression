@@ -5,10 +5,9 @@ import os
 def convert_to_gan_reading_format_save(input_dir, output_dir, target_size):
     """
     Prerequisite:
-    Download leftImg8bit into res/data/leftImg8bit
-    link: https://www.cityscapes-dataset.com/downloads/
+    Download imagenet ilsvrc data set
 
-    Convert Cityscapes dataset to "GAN format"
+    Convert imagenet dataset to "GAN format"
     (1) get list of all files in directory tree res/data/leftImg8bit/{train/, val/, test/}
     (2) process/ filter images
 
@@ -32,7 +31,7 @@ def convert_to_gan_reading_format_save(input_dir, output_dir, target_size):
 
     (remove intermediate folders, but keep train, valid, test split)
 
-    :param input_dir:       directory containing Cityscapes
+    :param input_dir:       directory containing imagenet
     :param output_dir:      output location
     :param target_size:     (height, width, channels)
     :return:
@@ -54,12 +53,13 @@ def convert_to_gan_reading_format_save(input_dir, output_dir, target_size):
     # (2) process/ filter images
     for idx, file in enumerate(listOfFiles):
 
-        if file.endswith(".png"):
+        if file.endswith(".JPEG"):
             print(file)
             img_nm = os.path.basename(file)
             img = cv2.imread(os.path.join(input_dir, file))
-            resized_img = cv2.resize(img, (w, h))
-            cv2.imwrite(os.path.join(output_dir, img_nm), resized_img)
+            resized_img = cv2.resize(img, (w, h)) # resizing and possibly decoloring is done later
+            # TODO It seems pretty unnecessary to read img when no operation is being performed, optimize this later by just copying
+            cv2.imwrite(os.path.join(output_dir, img_nm), img)
             valid_samples += 1
 
     print('size of valid images: {}'.format(valid_samples))

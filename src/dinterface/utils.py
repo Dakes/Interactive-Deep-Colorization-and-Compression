@@ -1,12 +1,15 @@
 import cv2
 import numpy as np
 
+# TODO move to config?
 _MIN_POINTS_THEME = 3
 _MAX_POINTS_THEME = 7
 # _MIN_POINTS_PIX = 10
 # _MAX_POINTS_PIX = 50
 _MIN_POINTS_PIX = 10
 _MAX_POINTS_PIX = 2000  # h*w*0.03
+
+# TODO: add "clever" point selection (mainly for compression)
 
 
 def add_color_pixels_rand_gt(img, num_points):
@@ -47,7 +50,7 @@ def imsegkmeans(rgb_img, num_points):
     see https://www.thepythoncode.com/article/kmeans-for-image-segmentation-opencv-python
 
     :param rgb_img:
-    :return:
+    :return: segmented image, sorted theme colors, mask
     """
     # if not specified, sample uniformly distributed random number within given interval
     points = np.random.random_integers(_MIN_POINTS_THEME, _MAX_POINTS_THEME) if num_points == -1 else num_points

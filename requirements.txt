@@ -1,1 +1,5 @@
 tensorflow
+opencv-python
+matplotlib
+scikit-image
+configparser

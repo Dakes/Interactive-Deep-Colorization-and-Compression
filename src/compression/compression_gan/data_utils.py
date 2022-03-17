@@ -21,7 +21,7 @@ def load_prepare_data_val(input_dir, batch_size, input_dim_target, full_res=Fals
     :return:
     """
     mode = 'train' if full_res else 'valid'
-    val_dataset = tf.data.Dataset.list_files(input_dir + 'val/*.png')
+    val_dataset = tf.data.Dataset.list_files(input_dir + 'val/*.JPEG')
 
     val_dataset = val_dataset.map(lambda x: load_norm_image(x, input_dim_target, mode=mode),
                                   num_parallel_calls=tf.data.experimental.AUTOTUNE)
@@ -72,7 +72,7 @@ def load_prepare_data_train(input_dir, batch_size, buf_size, input_dim_target):
     :return:
     """
 
-    train_dataset = tf.data.Dataset.list_files(input_dir + 'train/*.png')
+    train_dataset = tf.data.Dataset.list_files(input_dir + 'train/*.JPEG')
     train_dataset = train_dataset.map(lambda x: load_norm_image(x, input_dim_target, mode='train'),
                                       num_parallel_calls=tf.data.experimental.AUTOTUNE)
     train_dataset = train_dataset.shuffle(buf_size)

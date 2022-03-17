@@ -9,13 +9,24 @@ Saves them and can recolor grayscale images using these color hints. (Also grays
 import os, sys
 import argparse
 
+import src.dinterface.utils
+import src.dinterface.preprocess
+import src.utils.files as files
+
 class Colorizer(object):
-    def __init__(self, recolorize, compress) -> None:
+    def __init__(self, recolorize, compress, num_points=6) -> None:
         self.recolorize = recolorize
         self.compress = compress
+        self.num_points = num_points
+        self.dirs = files.config_parse(dirs=True)
         # lower CPU priority (to not freeze PC), unix only
         os.nice(10)
-        pass
+
+        self.num_points_pix = -1
+        self.num_points_theme = 6
+        # for training (set to False to not crop)
+        self.random_crop = 256
+
 
     def main(self):
         parser = argparse.ArgumentParser(
@@ -32,9 +43,12 @@ class Colorizer(object):
         self.recolorize = self.args.recolorize
         self.compress = self.args.compress
 
-    def color_cue_gen(self):
-        # TODO: put color cue gen in own function in preprocess
-        pass
+
+
+    def color_cue_gen(self, rgb_img):
+        # TODO: maybe implement single image mode
+        src.dinterface.utils.preprocess(self.dirs)
+
 
     def recolorize(self):
         pass

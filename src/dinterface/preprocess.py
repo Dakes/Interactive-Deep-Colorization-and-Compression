@@ -48,10 +48,6 @@ def crop(img, random_crop=256):
     return img[sample_h:sample_h + random_crop, sample_w:sample_w + random_crop]
 
 
-def convert_grayscale(dirs, img):
-    # TODO: implement
-    return img
-
 # TODO: later (joint training) use same crop for every file (same random seed??)
 def preprocess_grayscale(dirs, random_crop=256):
     # NOTE: Naaah, thats stupid, convert to grayscale on demand. Is quicker than saving and loading twice
@@ -72,7 +68,7 @@ def preprocess_grayscale(dirs, random_crop=256):
                 if random_crop:
                     img = crop(img, random_crop)
 
-                img = convert_grayscale(dirs, img)  # TODO: implement
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
                 # cv2.imwrite(dirs["original_gray_img"] + temp_fn + '.png', img, [int(cv2.IMWRITE_PNG_COMPRESSION),0])
 
 def preprocess_color(dirs, num_points_pix, num_points_theme, random_crop=256, align=False, only_locals=False,

@@ -36,4 +36,4 @@ io.input_dim_raw = (512, 1024, 3)
 io.input_dim_target = (480, 640, 3)
 io.buf_size = 2975
 io.data = '/imagenet-mini/' # TODO change to /datasets/ILSVRC when training
-io.data_prep = '/res/images/preprocessed_grayscale/'
+io.data_prep = '/res/eval/original_img/'

@@ -7,6 +7,12 @@ import tensorflow as tf
 import numpy as np
 
 from src.utils.logger import Logger
+# sys.path.insert(1, os.path.join(sys.path[0], '../..'))
+# from utils import add_color_pixels_rand_gt, imsegkmeans
+from src.utils import files
+
+dirs = files.config_parse(dirs=True)
+
 
 _BASE_PATH = '/home/nikolai10/IdeaProjects/xiao-et-al-remastered-demo/'
 

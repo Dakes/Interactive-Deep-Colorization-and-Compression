@@ -1,9 +1,13 @@
+import sys, os
 import time
 import pathlib
 import tensorflow as tf
 import numpy as np
 from src.colorization import model
 
+sys.path.insert(1, os.path.join(sys.path[0], '../..'))
+from src.dinterface import preprocess as preprocess
+from src.utils import files as files
 
 def get_all_paths(root_dir, ext='png'):
     root_dir = pathlib.Path(root_dir)

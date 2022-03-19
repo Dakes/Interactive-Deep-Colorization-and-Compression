@@ -8,35 +8,69 @@ import numpy as np
 
 sys.path.insert(1, os.path.join(sys.path[0], '../..'))
 from utils import add_color_pixels_rand_gt, imsegkmeans
-# from src.dinterface.utils import add_color_pixels_rand_gt, imsegkmeans
 from src.utils import files
-# import src.utils.files as files
 
+dirs = files.config_parse(dirs=True)
 
 def get_fn_wo_ext(fn):
     if fn.lower().endswith(('.png', '.jpg', '.jpeg')):
         fn = os.path.splitext(fn)[0]
     return fn
 
-def theme_gen_save(dirs, img, filename, num_points_theme=6, save_segmented=False):
+def cache_img(img, filepath, png_compression=0):
     """
-    Generates global theme and saves to disk. (to paths in dir)
+    Saves to disk, only if not already present
     """
-    segmented_img, theme, mask = imsegkmeans(img, num_points_theme)
-    filename = get_fn_wo_ext(filename)
-    if save_segmented:
-        cv2.imwrite(dirs["color_map"] + filename + '.png', segmented_img)
-    cv2.imwrite(dirs["theme_rgb"] + filename + '.png', theme, [int(cv2.IMWRITE_PNG_COMPRESSION),0])
-    cv2.imwrite(dirs["theme_mask"] + filename + '.png', mask, [int(cv2.IMWRITE_PNG_COMPRESSION),0])
+    if not os.path.isfile(filepath):
+        cv2.imwrite(filepath, img, [int(cv2.IMWRITE_PNG_COMPRESSION), png_compression])
+    else:
+        # TODO: maybe load and compare to new image & save if changed
+        pass
 
-def local_gen_save(dirs, img, filename, num_points_pix):
+def load_cache_img(filepath):
     """
-    only "dumb" generation of points
+    :return: None if file not exists
     """
-    points_mask, points_rgb = add_color_pixels_rand_gt(img, num_points_pix)
+    img = None
+    if os.path.isfile(filepath):
+        img = cv2.imread(filepath)
+    return img
+
+def theme_gen(img, filename, set="train", num_points_theme=6, save_segmented=False, overwrite=False):
+    """
+    :param set: train, val (or test)
+    Generates global theme. Caches to disk, if not already cached.
+    Does nothing if files exist on disk.
+    :param overwrite: if True, overwrite existing files
+    """
     filename = get_fn_wo_ext(filename)
-    cv2.imwrite(dirs["local_mask"] + filename + '.png', points_mask, [int(cv2.IMWRITE_PNG_COMPRESSION),0])
-    cv2.imwrite(dirs["local_hints"] + filename + '.png', points_rgb, [int(cv2.IMWRITE_PNG_COMPRESSION),0])
+    theme_path = dirs[set] + dirs["theme_rgb"] + filename + '.png'
+    mask_path = dirs[set] + dirs["theme_mask"] + filename + '.png'
+    if overwrite or not os.path.isfile(theme_path) or not os.path.isfile(mask_path):
+        segmented_img, theme, mask = imsegkmeans(img, num_points_theme)
+        cache_img(theme, theme_path)
+        cache_img(mask, mask_path)
+        if save_segmented:
+            segmented_path = dirs[set] + dirs["color_map"] + filename + '.png'
+            if not os.path.isfile(segmented_path):
+                cache_img(segmented_img, segmented_path)
+
+
+def local_gen(img, filename, num_points_pix=-1, set="train", overwrite=False):
+    """
+    Generates local points. Caches if not already on disk. Skips, if present.
+    only "dumb" generation of points
+    :param num_points_pix: -1; random number
+    :param overwrite: if True, overwrite existing files
+    """
+    filename = get_fn_wo_ext(filename)
+    mask_path = dirs[set] + dirs["local_mask"] + filename + '.png'
+    points_path = dirs[set] + dirs["local_hints"] + filename + '.png'
+
+    if overwrite or not os.path.isfile(mask_path) or not os.path.isfile(points_path):
+        points_mask, points_rgb = add_color_pixels_rand_gt(img, num_points_pix)
+        cache_img(points_mask, mask_path)
+        cache_img(points_rgb, points_path)
 
 def crop(img, random_crop=256):
     # TODO: save crops (needed for dynamic point selection). (Except seed is used [derived from filename?])
@@ -49,12 +83,8 @@ def crop(img, random_crop=256):
 
 
 # TODO: later (joint training) use same crop for every file (same random seed??)
-def preprocess_grayscale(dirs, random_crop=256):
-    # NOTE: Naaah, thats stupid, convert to grayscale on demand. Is quicker than saving and loading twice
-    # (Unless we use a ramdisk to save the 140gb dataset, which we can totally do *flex*)
-    if not dirs:
-        dirs = files.config_parse(dirs=True)
-
+# LEGACY FUNCTION
+def preprocess_grayscale(random_crop=256):
     counter = 0
     for dirpath, dnames, fnames in os.walk(dirs["original_img"]):
         for file in fnames:
@@ -69,9 +99,11 @@ def preprocess_grayscale(dirs, random_crop=256):
                     img = crop(img, random_crop)
 
                 img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
                 # cv2.imwrite(dirs["original_gray_img"] + temp_fn + '.png', img, [int(cv2.IMWRITE_PNG_COMPRESSION),0])
 
-def preprocess_color(dirs, num_points_pix, num_points_theme, random_crop=256, align=False, only_locals=False,
+# LEGACY FUNCTION
+def preprocess_color(num_points_pix, num_points_theme, random_crop=256, align=False, only_locals=False,
                      save_segmented=False):
     """
     clean python implementation of:
@@ -109,43 +141,44 @@ def preprocess_color(dirs, num_points_pix, num_points_theme, random_crop=256, al
                     if h > w:
                         img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
-                local_gen_save(dirs, img, temp_fn, num_points_pix)
+                local_gen(dirs, img, temp_fn, num_points_pix)
                 if not only_locals:
-                    theme_gen_save(dirs, img, temp_fn, num_points_theme, save_segmented)
+                    theme_gen(dirs, img, temp_fn, num_points_theme, save_segmented)
                     # save alined?? But not like this
                     # cv2.imwrite(dirs["original_img"] + temp_fn + '.png', img, [int(cv2.IMWRITE_PNG_COMPRESSION),0])
 
 
-def dataset_prepare(dirs):
+def dataset_prepare(set="train"):
     """
+    :param set: train, val (or test)
     Links dataset into 'original_img'. Runs recursively.
     ALL images below given folder will be used.
     REMOVES all old links
     """
     # remove all old links
-    print("Deleting old symlinks in:", dirs["original_img"])
-    for dirpath, _, fnames in os.walk(dirs["original_img"]):
+    print("Deleting old symlinks in:", dirs[set] + dirs["original_img"])
+    for dirpath, _, fnames in os.walk(dirs[set] + dirs["original_img"]):
         for file in fnames:
             link = os.path.join(dirpath, file)
             if os.path.islink(link):
                 os.unlink(link)
 
     counter = 0
-    for dirpath, _, fnames in os.walk(dirs["dataset"]):
+    for dirpath, _, fnames in os.walk(dirs["dataset"]+set):
         for file in fnames:
             if file.lower().endswith(('.png', '.jpg', '.jpeg')):
                 counter += 1
                 if not counter % 10000:
                     print("dataset_prepare; Symlinked", counter, "images")
                 src_file = os.path.join(dirpath, file)
-                new_link = os.path.join(dirs["original_img"], file)
+                new_link = os.path.join(dirs[set] + dirs["original_img"], file)
                 os.symlink(src_file, new_link)
 
 def main():
-    dirs = files.config_parse(dirs=True)
-    dataset_prepare(dirs)
-    preprocess_color(dirs, num_points_pix=-1, num_points_theme=-1, random_crop=False)
-    preprocess_grayscale(dirs, random_crop=False)
+    dataset_prepare("train")
+    dataset_prepare("val")
+    preprocess_color(num_points_pix=-1, num_points_theme=-1, random_crop=False)
+    preprocess_grayscale(random_crop=False)
 
 
 if __name__ == '__main__':

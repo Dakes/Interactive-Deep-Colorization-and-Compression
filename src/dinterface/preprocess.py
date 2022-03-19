@@ -17,14 +17,16 @@ def get_fn_wo_ext(fn):
         fn = os.path.splitext(fn)[0]
     return fn
 
-def cache_img(img, filepath, png_compression=0):
+def cache_img(img, filepath, overwrite, png_compression=0):
     """
     Saves to disk, only if not already present
     """
     if not os.path.isfile(filepath):
         cv2.imwrite(filepath, img, [int(cv2.IMWRITE_PNG_COMPRESSION), png_compression])
+    elif overwrite:
+        # TODO: load and compare to new image & save if changed
+        cv2.imwrite(filepath, img, [int(cv2.IMWRITE_PNG_COMPRESSION), png_compression])
     else:
-        # TODO: maybe load and compare to new image & save if changed
         pass
 
 def load_cache_img(filepath):
@@ -38,6 +40,7 @@ def load_cache_img(filepath):
 
 def theme_gen(img, filename, set="train", num_points_theme=6, save_segmented=False, overwrite=False):
     """
+    :param img: color image, already cropped, if crop is desired
     :param set: train, val (or test)
     Generates global theme. Caches to disk, if not already cached.
     Does nothing if files exist on disk.
@@ -48,8 +51,8 @@ def theme_gen(img, filename, set="train", num_points_theme=6, save_segmented=Fal
     mask_path = dirs[set] + dirs["theme_mask"] + filename + '.png'
     if overwrite or not os.path.isfile(theme_path) or not os.path.isfile(mask_path):
         segmented_img, theme, mask = imsegkmeans(img, num_points_theme)
-        cache_img(theme, theme_path)
-        cache_img(mask, mask_path)
+        cache_img(theme, theme_path, overwrite)
+        cache_img(mask, mask_path, overwrite)
         if save_segmented:
             segmented_path = dirs[set] + dirs["color_map"] + filename + '.png'
             if not os.path.isfile(segmented_path):
@@ -60,6 +63,7 @@ def local_gen(img, filename, num_points_pix=-1, set="train", overwrite=False):
     """
     Generates local points. Caches if not already on disk. Skips, if present.
     only "dumb" generation of points
+    :param img: color image, already cropped, if crop is desired
     :param num_points_pix: -1; random number
     :param overwrite: if True, overwrite existing files
     """
@@ -69,17 +73,49 @@ def local_gen(img, filename, num_points_pix=-1, set="train", overwrite=False):
 
     if overwrite or not os.path.isfile(mask_path) or not os.path.isfile(points_path):
         points_mask, points_rgb = add_color_pixels_rand_gt(img, num_points_pix)
-        cache_img(points_mask, mask_path)
-        cache_img(points_rgb, points_path)
+        cache_img(points_mask, mask_path, overwrite)
+        cache_img(points_rgb, points_path, overwrite)
 
-def crop(img, random_crop=256):
-    # TODO: save crops (needed for dynamic point selection). (Except seed is used [derived from filename?])
+def crop(img, random_crop=256, fn=""):
+    """
+    :param fn: will be incorporated into random seed (same crop for gray & color) (w/o extension)
+    :return: cropped img
+    """
+    if fn:
+        hsh = abs(hash(get_fn_wo_ext(fn))) + random_crop
+    else:
+        hsh = np.random.randint(9999999)
+    rs = np.random.RandomState(np.random.MT19937(np.random.SeedSequence(hsh)))
+
     h, w, _ = img.shape
     max_sample_h = h - random_crop
     max_sample_w = w - random_crop
-    sample_h = np.random.random_integers(0, max_sample_h)
-    sample_w = np.random.random_integers(0, max_sample_w)
+    sample_h = rs.randint(0, max_sample_h)
+    sample_w = rs.randint(0, max_sample_w)
     return img[sample_h:sample_h + random_crop, sample_w:sample_w + random_crop]
+
+def gt_gen(img, filename, set="train", random_crop=256, overwrite=False):
+    filename = get_fn_wo_ext(filename)
+    gt_path = dirs[set] + dirs["ground_truth"] + filename + ".png"
+
+    if overwrite or not os.path.isfile(gt_path):
+        img = crop(img, random_crop, filename)
+        cache_img(img, gt_path, overwrite)
+
+def gt_gen_color(filename, set="train", random_crop=256, overwrite=False):
+    """
+    :param filename: original img path
+    """
+    img = cv2.imread(filename)
+    gt_gen(img, filename, set=set, random_crop=random_crop, overwrite=overwrite)
+
+def gt_gen_gray(filename, set="train", random_crop=256, overwrite=False):
+    """
+    :param filename: original img path
+    """
+    img = cv2.imread(filename)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    gt_gen(img, filename, set=set, random_crop=random_crop, overwrite=overwrite)
 
 
 # TODO: later (joint training) use same crop for every file (same random seed??)

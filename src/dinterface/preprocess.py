@@ -5,40 +5,45 @@ Calling this file from commandline, preprocesses all images with default paramet
 import os, sys
 import cv2
 import numpy as np
+import pathlib
 
-sys.path.insert(1, os.path.join(sys.path[0], '../..'))
-from utils import add_color_pixels_rand_gt, imsegkmeans
+sys.path.insert(1, os.path.abspath(os.path.join(pathlib.Path(__file__).parent.resolve(), '../..')))
+sys.path.insert(1, os.path.abspath(pathlib.Path(__file__).parent.resolve()))
+from dutils import add_color_pixels_rand_gt, imsegkmeans, arr2tf, get_fn_wo_ext
 from src.utils import files
 
 dirs = files.config_parse(dirs=True)
 
-def get_fn_wo_ext(fn):
-    if fn.lower().endswith(('.png', '.jpg', '.jpeg')):
-        fn = os.path.splitext(fn)[0]
-    return fn
 
 def cache_img(img, filepath, overwrite, png_compression=0):
     """
     Saves to disk, only if not already present
     """
-    if not os.path.isfile(filepath):
-        cv2.imwrite(filepath, img, [int(cv2.IMWRITE_PNG_COMPRESSION), png_compression])
-    elif overwrite:
-        # TODO: load and compare to new image & save if changed
-        cv2.imwrite(filepath, img, [int(cv2.IMWRITE_PNG_COMPRESSION), png_compression])
-    else:
-        pass
+    try:
+        if not os.path.isfile(filepath):
+            cv2.imwrite(filepath, img, [int(cv2.IMWRITE_PNG_COMPRESSION), png_compression])
+        elif overwrite:
+            # TODO: load and compare to new image & save if changed
+            cv2.imwrite(filepath, img, [int(cv2.IMWRITE_PNG_COMPRESSION), png_compression])
+        else:
+            pass
+    except FileNotFoundError as err:
+        print("Creating dir:", os.path.dirname(filepath))
+        os.makedirs(os.path.dirname(filepath))
+        cache_img(img, filepath, overwrite, png_compression)
 
-def load_cache_img(filepath):
+
+def load_img(filepath):
     """
     :return: None if file not exists
     """
     img = None
     if os.path.isfile(filepath):
         img = cv2.imread(filepath)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     return img
 
-def theme_gen(img, filename, set="train", num_points_theme=6, save_segmented=False, overwrite=False):
+def theme_gen(filename, set="train", num_points_theme=6, save_segmented=False, overwrite=False):
     """
     :param img: color image, already cropped, if crop is desired
     :param set: train, val (or test)
@@ -49,17 +54,23 @@ def theme_gen(img, filename, set="train", num_points_theme=6, save_segmented=Fal
     filename = get_fn_wo_ext(filename)
     theme_path = dirs[set] + dirs["theme_rgb"] + filename + '.png'
     mask_path = dirs[set] + dirs["theme_mask"] + filename + '.png'
-    if overwrite or not os.path.isfile(theme_path) or not os.path.isfile(mask_path):
-        segmented_img, theme, mask = imsegkmeans(img, num_points_theme)
+    segmented_path = dirs[set] + dirs["color_map"] + filename + '.png'
+    theme = load_img(theme_path)
+    mask = load_img(mask_path)
+    segmented_img = load_img(segmented_path)
+
+    if overwrite or not theme or not mask:
+        gt_path = dirs[set] + dirs["ground_truth"] + filename + ".png"
+        gt = load_img(gt_path)
+        segmented_img, theme, mask = imsegkmeans(gt, num_points_theme)
         cache_img(theme, theme_path, overwrite)
         cache_img(mask, mask_path, overwrite)
         if save_segmented:
-            segmented_path = dirs[set] + dirs["color_map"] + filename + '.png'
-            if not os.path.isfile(segmented_path):
-                cache_img(segmented_img, segmented_path)
+            cache_img(segmented_img, segmented_path)
+    return arr2tf(theme), arr2tf(mask), arr2tf(segmented_img)
 
 
-def local_gen(img, filename, num_points_pix=-1, set="train", overwrite=False):
+def local_gen(filename, num_points_pix=-1, set="train", overwrite=False):
     """
     Generates local points. Caches if not already on disk. Skips, if present.
     only "dumb" generation of points
@@ -70,11 +81,17 @@ def local_gen(img, filename, num_points_pix=-1, set="train", overwrite=False):
     filename = get_fn_wo_ext(filename)
     mask_path = dirs[set] + dirs["local_mask"] + filename + '.png'
     points_path = dirs[set] + dirs["local_hints"] + filename + '.png'
+    points_rgb = load_img(points_path)
+    points_mask = load_img(mask_path)
 
-    if overwrite or not os.path.isfile(mask_path) or not os.path.isfile(points_path):
-        points_mask, points_rgb = add_color_pixels_rand_gt(img, num_points_pix)
+    if overwrite or not points_rgb or not points_mask:
+        gt_path = dirs[set] + dirs["ground_truth"] + filename + ".png"
+        gt = load_img(gt_path)
+        points_mask, points_rgb = add_color_pixels_rand_gt(gt, num_points_pix)
         cache_img(points_mask, mask_path, overwrite)
         cache_img(points_rgb, points_path, overwrite)
+    return arr2tf(points_rgb), arr2tf(points_mask)
+
 
 def crop(img, random_crop=256, fn=""):
     """
@@ -94,7 +111,7 @@ def crop(img, random_crop=256, fn=""):
     sample_w = rs.randint(0, max_sample_w)
     return img[sample_h:sample_h + random_crop, sample_w:sample_w + random_crop]
 
-def gt_gen(img, filename, set="train", random_crop=256, overwrite=False):
+def _gt_gen(img, filename, set="train", random_crop=256, overwrite=False):
     filename = get_fn_wo_ext(filename)
     gt_path = dirs[set] + dirs["ground_truth"] + filename + ".png"
 
@@ -106,16 +123,15 @@ def gt_gen_color(filename, set="train", random_crop=256, overwrite=False):
     """
     :param filename: original img path
     """
-    img = cv2.imread(filename)
-    gt_gen(img, filename, set=set, random_crop=random_crop, overwrite=overwrite)
+    img = load_img(filename)
+    return arr2tf(_gt_gen(img, filename, set=set, random_crop=random_crop, overwrite=overwrite))
 
 def gt_gen_gray(filename, set="train", random_crop=256, overwrite=False):
     """
     :param filename: original img path
     """
-    img = cv2.imread(filename)
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    gt_gen(img, filename, set=set, random_crop=random_crop, overwrite=overwrite)
+    img = load_img(filename)
+    return arr2tf(_gt_gen(img, filename, set=set, random_crop=random_crop, overwrite=overwrite))
 
 
 # TODO: later (joint training) use same crop for every file (same random seed??)
@@ -131,10 +147,9 @@ def preprocess_grayscale(random_crop=256):
                 temp_fn = get_fn_wo_ext(file)
                 item_path = os.path.join(dirpath, file)
                 img = cv2.imread(item_path)
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
                 if random_crop:
                     img = crop(img, random_crop)
-
-                img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
                 # cv2.imwrite(dirs["original_gray_img"] + temp_fn + '.png', img, [int(cv2.IMWRITE_PNG_COMPRESSION),0])
 
@@ -154,9 +169,6 @@ def preprocess_color(num_points_pix, num_points_theme, random_crop=256, align=Fa
     :param only_locals:
     :return:
     """
-    if not dirs:
-        dirs = files.config_parse(dirs=True)
-
     counter = 0
     for dirpath, dnames, fnames in os.walk(dirs["original_img"]):
         for file in fnames:
@@ -191,6 +203,12 @@ def dataset_prepare(set="train"):
     ALL images below given folder will be used.
     REMOVES all old links
     """
+    # to run only once
+    try:
+        if dataset_prepare.prepared[set]:
+            return
+    except (AttributeError, KeyError):
+        dataset_prepare.prepared = {}
     # remove all old links
     print("Deleting old symlinks in:", dirs[set] + dirs["original_img"])
     for dirpath, _, fnames in os.walk(dirs[set] + dirs["original_img"]):
@@ -204,17 +222,24 @@ def dataset_prepare(set="train"):
         for file in fnames:
             if file.lower().endswith(('.png', '.jpg', '.jpeg')):
                 counter += 1
-                if not counter % 10000:
-                    print("dataset_prepare; Symlinked", counter, "images")
+                if not counter % 100000:
+                    print("dataset_prepare; Symlinked", counter, "images for set", set)
                 src_file = os.path.join(dirpath, file)
                 new_link = os.path.join(dirs[set] + dirs["original_img"], file)
-                os.symlink(src_file, new_link)
+                try:
+                    os.symlink(src_file, new_link)
+                except FileNotFoundError as err:
+                    print("Creating dir:", os.path.dirname(new_link))
+                    os.makedirs(os.path.dirname(new_link))
+                    os.symlink(src_file, new_link)
+    print("dataset_prepare; Symlinked", counter, "images for set", set)
+    dataset_prepare.prepared[set] = True
 
 def main():
-    dataset_prepare("train")
-    dataset_prepare("val")
-    preprocess_color(num_points_pix=-1, num_points_theme=-1, random_crop=False)
-    preprocess_grayscale(random_crop=False)
+    dataset_prepare(set="train")
+    dataset_prepare(set="val")
+    # preprocess_color(num_points_pix=-1, num_points_theme=-1, random_crop=False)
+    # preprocess_grayscale(random_crop=False)
 
 
 if __name__ == '__main__':

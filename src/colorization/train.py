@@ -47,7 +47,7 @@ _EVAL_POINTS_MASK = dirs["val"] + dirs["local_mask"]
 # _LOGS_DIR = _BASE_PATH + '/res/logs/'
 _LOGS_DIR = dirs["logs"]
 _EXT_LIST = ['png', 'png', 'png', 'png', 'png', 'png']
-_NAME_LIST = ['color img', 'theme img', 'theme mask', 'color_map img', 'local img', 'local mask']
+_NAME_LIST = ['gt img', 'theme img', 'theme mask', 'color_map img', 'local img', 'local mask']
 
 
 # first step: without residual network
@@ -68,7 +68,7 @@ def train1():
     train_logger = Logger()
     test_logger = Logger()
     # fw = tf.compat.v1.summary.FileWriter(logs_dir, graph=sess.graph)
-    fw = tf.summary.create_file_writer(logs_dir, graph=sess.graph)
+    fw = tf.summary.create_file_writer(logs_dir)
 
     # get the training data
     train_list = input_data.get_train_list(
@@ -241,7 +241,7 @@ def train2():
     test_psnr0 = 10 * tf.math.log(1 / (tf.reduce_mean(input_tensor=tf.square(test_rgb_out0 - image_rgb_test)))) / np.log(10)
     test_psnr = 10 * tf.math.log(1 / (tf.reduce_mean(input_tensor=tf.square(test_rgb_out - image_rgb_test)))) / np.log(10)
 
-    # 训练残差网络
+    # 训练残差网络 / Train the residual network
     var_list = tf.compat.v1.global_variables()
     var_model1 = [var for var in var_list if var.name.startswith('UserGuide')]
     var_model2 = [var for var in var_list if var.name.startswith('PRLNet')]

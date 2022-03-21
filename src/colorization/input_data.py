@@ -3,9 +3,11 @@ import time
 import pathlib
 import tensorflow as tf
 import numpy as np
-from src.colorization import model
+from cachier import cachier
+import datetime
 
 sys.path.insert(1, os.path.join(sys.path[0], '../..'))
+from src.colorization import model
 from src.dinterface import preprocess as preprocess
 from src.dinterface import dutils
 from src.utils import files as files
@@ -13,18 +15,45 @@ from src.utils import files as files
 dirs = files.config_parse(dirs=True)
 pp_params = files.config_parse()["preprocess"]
 
-def get_all_paths(root_dir, ext='png'):
+@cachier(stale_after=datetime.timedelta(days=1))
+def get_all_paths(root_dir, ext='png', basename=False):
+    """
+    :return: list of paths to files in root_dir, not absolute
+    """
     root_dir = pathlib.Path(root_dir)
-    file_paths = list(map(str, root_dir.rglob('*.' + ext)))
-
+    paths = map(str, root_dir.rglob('*.' + ext))
+    if basename:
+        paths = map(os.path.basename, paths)
+    file_paths = list(paths)
     return file_paths
 
+@cachier(stale_after=datetime.timedelta(days=1))
+def get_new_paths(filename_list, root):
+    new_paths = []
+    for file in filename_list:
+        new_paths.append(os.path.join(root, file).replace(".JPEG", ".png"))
+    return new_paths
 
-def get_train_list(dir_list, name_list, ext_list, shuffle=True):
+def _get_train_list_param_hasher(args, kwargs):
+    import hashlib
+    # dir_list, name_list, ext_list, shuffle=True, set="train"
+    # WARNING: when shuffle=True technically it shouldn't cache it, but ¯\_(ツ)_/¯
+    hashable = str(sorted(args[0])) + str(kwargs)
+    return hashlib.md5(hashable.encode('utf-8')).hexdigest()
+
+@cachier(hash_params=_get_train_list_param_hasher, stale_after=datetime.timedelta(days=1))
+def get_train_list(dir_list, name_list, ext_list, shuffle=True, set="train"):
+    """
+    get list of /hypothetical/ paths to files, that will be generated on demand
+    """
+    # adjust extension to extension in dataset. Maybe add to config. Maybe change get_all_paths to match multiple.
+    original_list = get_all_paths(dirs[set] + dirs["original_img"], ext="JPEG", basename=True)
+
     train_list = []
     for root_dir, name, ext in zip(dir_list, name_list, ext_list):
         tic = time.time()
-        file_paths = sorted(get_all_paths(root_dir, ext))
+        file_paths = sorted(get_new_paths(original_list, root_dir))
+        # file_paths = sorted(get_all_paths(root_dir, ext))
         toc = time.time()
         print('[Type:%s][File nums: %d, Time_cost: %.2fs]' % (name, len(file_paths), toc - tic))
         train_list.append(np.asarray(file_paths))
@@ -41,10 +70,17 @@ def get_train_list(dir_list, name_list, ext_list, shuffle=True):
 
 # both
 def get_batch(train_list, image_size, batch_size, capacity, is_random=True, only_globals=False):
+    # TODO NEXT: fix eager execution bug
+    tf.compat.v1.disable_eager_execution()
+    print("train_list: ", train_list[0])
+
     filepath_queue = tf.compat.v1.train.slice_input_producer(train_list, shuffle=False)
+    # filepath_queue = tf.data.Dataset.from_tensor_slices(tuple(train_list))
+    # print("\nTrain_list:", train_list)
+    print("\nfilepath_queue:", filepath_queue.numpy())
+    print("\nfilepath_queue STR ===:", filepath_queue[0].numpy() )
     fn_wo_ext = dutils.get_fn_wo_ext(filepath_queue[0])
     img_size_h, img_size_w = image_size
-    print("filepath_queue:", filepath_queue)
 
     # color
     # image_rgb = tf.io.read_file(filepath_queue[0])

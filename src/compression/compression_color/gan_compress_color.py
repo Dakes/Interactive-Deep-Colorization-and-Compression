@@ -4,13 +4,11 @@ import os
 import gin
 import tensorflow as tf
 
-from src.compression.data_utils import load_prepare_data_val, load_prepare_data_train, fit
-from src.compression.net_architecture import make_enc, make_gen, make_gan, make_multi_scale_disc
+from src.compression.shared.data_utils import load_prepare_data_val, load_prepare_data_train, fit
+from src.compression.shared.net_architecture import make_enc, make_gen, make_gan, make_multi_scale_disc
 
-# adjust as required
-path_to_dataset = '/home/daniel/imagenet-mini'
 
-GIN_FIN = 'extreme_compression.gin'
+GIN_FIN = 'extreme_compression_color.gin'
 STRFTIME_FORMAT = "%Y%m%d-%H%M%S"
 
 plt.rcParams['figure.figsize'] = [16, 9]
@@ -59,8 +57,8 @@ if not os.path.exists(data_prep):
 
 
 # load and preprocess dataset
-train_ds = load_prepare_data_train(data_prep, batch_size, buf_size, input_dim_target)
-val_ds = load_prepare_data_val(data_prep, batch_size, input_dim_target)
+train_ds = load_prepare_data_train(data_prep, batch_size, buf_size)
+val_ds = load_prepare_data_val(data_prep)
 
 h_transform, w_transform = input_dim_raw[0] // 16, input_dim_raw[1] // 16
 encoder = make_enc(gen_path, num_filters_bottleneck=channel_bottleneck, vis_model=False)

@@ -51,7 +51,7 @@ def convert_grayscale(dirs, img):
 def preprocess_grayscale(dirs, random_crop=256):
     if not dirs:
         dirs = files.config_parse(dirs=True)
-    for dirpath, dnames, fnames in os.walk(dirs["original_img"]):
+    for dirpath, dnames, fnames in os.walk(dirs["ground_truth"]):
         for file in fnames:
             if file.lower().endswith(('.png', '.jpg', '.jpeg')):
                 temp_fn = get_fn_wo_ext(file)
@@ -61,13 +61,13 @@ def preprocess_grayscale(dirs, random_crop=256):
                     img = crop(img, random_crop)
                 # TODO: implement
                 img = convert_grayscale(dirs, img)
-                cv2.imwrite(dirs["original_img"] + temp_fn + '.png', img)
+                cv2.imwrite(dirs["ground_truth"] + temp_fn + '.png', img)
 
 def preprocess_color(dirs, num_points_pix, num_points_theme, random_crop=256, align=False, only_locals=False):
     """
     clean python implementation of:
     https://github.com/praywj/Interactive-Deep-Colorization-and-Compression/tree/master/prepare_dataset
-    iterates through "original_img" folder, to prepare color cues
+    iterates through "ground_truth" folder, to prepare color cues
 
     :param dirs: config parser (dict-like) with directories
     :param num_points_pix:
@@ -80,7 +80,7 @@ def preprocess_color(dirs, num_points_pix, num_points_theme, random_crop=256, al
     if not dirs:
         dirs = files.config_parse(dirs=True)
 
-    for dirpath, dnames, fnames in os.walk(dirs["original_img"]):
+    for dirpath, dnames, fnames in os.walk(dirs["ground_truth"]):
         for file in fnames:
             if file.lower().endswith(('.png', '.jpg', '.jpeg')):
                 temp_fn = get_fn_wo_ext(file)
@@ -98,7 +98,7 @@ def preprocess_color(dirs, num_points_pix, num_points_theme, random_crop=256, al
                 local_gen_save(dirs, img, temp_fn, num_points_pix)
                 if not only_locals:
                     theme_gen_save(dirs, img, temp_fn, num_points_theme)
-                    cv2.imwrite(dirs["original_img"] + temp_fn + '.png', img)
+                    cv2.imwrite(dirs["ground_truth"] + temp_fn + '.png', img)
 
 
 

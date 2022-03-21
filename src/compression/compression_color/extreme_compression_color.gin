@@ -1,0 +1,39 @@
+# the network architecture is based on:
+# GANs for Extreme Learned Image Compression (https://arxiv.org/pdf/1804.02958.pdf)
+# High-Resolution Image Synthesis and Semantic Manipulation with Conditional GANs (https://arxiv.org/pdf/1711.11585.pdf)
+# Perceptual Losses for Real-Time Style Transfer and Super-Resolution (https://arxiv.org/pdf/1603.08155.pdf)
+
+# Loss and Optimizer (AdamOptimizer for both G and D)
+setup_optimizer.g_lr = 2E-4
+setup_optimizer.d_lr = 2E-4
+setup_optimizer.gan_loss = 'least_squares'      # not_saturating least_squares
+setup_optimizer.use_lpips = True
+setup_optimizer.use_feature_matching = False
+
+# Shared specs (G and D)
+shared_specs.epochs = 3
+shared_specs.batch_size = 3
+shared_specs.k_beta = 0.05                      # GAN loss scaler
+shared_specs.k_m = 0.5                          # MSE loss scaler (always 0.5)
+shared_specs.k_p = 0.5                          # LPIPS loss scaler (always 0.5)
+shared_specs.k_fm = 0.5                         # Feature Matching loss scaler
+shared_specs.channel_bottleneck = 8
+shared_specs.disc_scale = 3
+
+# I/O and data structure
+io.base_path = '/home/daniel' # TODO change to /home/kiadmin/projects when training on server
+io.code_directory = '/PycharmProjects/Interactive-Deep-Colorization-and-Compression' # TODO remove /PycharmProjects when training
+io.ckpt_dir = '/res/out/gen_compression_color/training_checkpoints'
+io.gen_imgs_dir = '/res/out/gen_compression_color/images/'
+io.tb_dir = '/res/out/gen_compression_color/tensorboard/'
+io.model_dir = '/res/out/gen_compression_color/model/'
+io.log_dir = '/res/out/gen_compression_color/log_dir/'
+io.lpips_weights = '/res/out/gen_compression_color/model/lpips_weights'
+
+# ============================================================
+# Dataset (imagenet dataset)
+io.input_dim_raw = (512, 1024, 3)
+io.input_dim_target = (256, 256, 3)
+io.buf_size = 2975
+io.data = '/imagenet-mini/' # probably not needed, preprocessing is done outside of the compression nets
+io.data_prep = '/res/'

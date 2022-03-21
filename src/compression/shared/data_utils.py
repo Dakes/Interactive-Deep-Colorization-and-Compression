@@ -4,31 +4,31 @@ import os
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
-from src.compression.net_architecture import quantizer_theis
-from src.compression.net_loss import gen_loss, disc_loss
+from src.compression.shared.net_architecture import quantizer_theis
+from src.compression.shared.net_loss import gen_loss, disc_loss
 
 
-def load_prepare_data_val(input_dir, batch_size, input_dim_target, full_res=False):
+def load_prepare_data_val(input_dir, gray=False):
     """
     based on https://www.tensorflow.org/tutorials/generative/pix2pix
 
     :param input_dir:
-    :param batch_size:
-    :param input_dim_target:
-    :param input_dim_patch:
+    :param gray:
     :return:
     """
-    mode = 'train' if full_res else 'valid'
-    val_dataset = tf.data.Dataset.list_files(input_dir + 'eval/original_img/*.png')
+    # mode = 'train' if full_res else 'valid'
 
-    val_dataset = val_dataset.map(lambda x: load_norm_image(x, input_dim_target, mode=mode),
-                                  num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    if gray:
+        val_dataset = tf.data.Dataset.list_files(input_dir + 'val/ground_truth_gray/*.png')
+    else:
+        val_dataset = tf.data.Dataset.list_files(input_dir + 'val/ground_truth/*.png')
+    val_dataset = val_dataset.map(lambda x: load_norm_image(x), num_parallel_calls=tf.data.experimental.AUTOTUNE)
     val_dataset = val_dataset.batch(1)
 
     return val_dataset
 
 
-def load_norm_image(image_file, input_dim_target, mode='train'):
+def load_norm_image(image_file):
     input_image_fn = tf.io.read_file(image_file)
     input_image = tf.image.decode_png(input_image_fn)
     input_image = tf.cast(input_image, tf.float32)
@@ -60,7 +60,7 @@ def generate_images(encoder, decoder, example_input):
     plt.show()
 
 
-def load_prepare_data_train(input_dir, batch_size, buf_size, input_dim_target):
+def load_prepare_data_train(input_dir, batch_size, buf_size, gray=False):
     """
     based on https://www.tensorflow.org/tutorials/generative/pix2pix
     :param input_dir:
@@ -70,9 +70,11 @@ def load_prepare_data_train(input_dir, batch_size, buf_size, input_dim_target):
     :return:
     """
 
-    train_dataset = tf.data.Dataset.list_files(input_dir + 'train/*.png')
-    train_dataset = train_dataset.map(lambda x: load_norm_image(x, input_dim_target, mode='train'),
-                                      num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    if gray:
+        train_dataset = tf.data.Dataset.list_files(input_dir + 'train/ground_truth_gray/*.png')
+    else:
+        train_dataset = tf.data.Dataset.list_files(input_dir + 'train/ground_truth/*.png')
+    train_dataset = train_dataset.map(lambda x: load_norm_image(x), num_parallel_calls=tf.data.experimental.AUTOTUNE)
     train_dataset = train_dataset.shuffle(buf_size)
     train_dataset = train_dataset.batch(batch_size)
     # allow later elements to be prepared while the current element is being processed (improve latency + throughput)
@@ -80,7 +82,7 @@ def load_prepare_data_train(input_dir, batch_size, buf_size, input_dim_target):
 
     return train_dataset
 
-
+"""
 def load_norm_image(image_file, input_dim_target, mode='train'):
     input_image_fn = tf.io.read_file(image_file)
     input_image = tf.image.decode_png(input_image_fn)
@@ -93,7 +95,7 @@ def load_norm_image(image_file, input_dim_target, mode='train'):
     # normalize images to [-1, 1]
     input_image = (input_image / 127.5) - 1
     return input_image
-
+"""
 
 def fit(train_ds, val_ds, epochs, ckpt, ckpt_prefix, gan, encoder, decoder, disc, sum_writer, enc_dec_opt, disc_opt,
         gan_loss, k_beta, k_m, k_p, k_fm, gen_path, lpips_path, model_path, use_lpips, use_feature_matching,

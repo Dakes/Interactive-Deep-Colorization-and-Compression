@@ -17,11 +17,11 @@ _THEME_MASK_DIR = _BASE_PATH + 'res/data/theme_mask_dir'
 _LOCAL_DIR = _BASE_PATH + 'res/data/local_dir'
 _LOCAL_MASK_DIR = _BASE_PATH + 'res/data/local_mask_dir'
 
-_EVAL_IMG_RGB = _BASE_PATH + 'res/eval/image_color_dir/img_rgb.png'
-_EVAL_THEME_RGB = _BASE_PATH + 'res/eval/theme_dir/img_rgb.png'
-_EVAL_MASK = _BASE_PATH + 'res/eval/theme_mask_dir/img_rgb.png'
-_EVAL_POINTS_RGB = _BASE_PATH + 'res/eval/local_dir/img_rgb.png'
-_EVAL_POINTS_MASK = _BASE_PATH + 'res/eval/local_mask_dir/img_rgb.png'
+_EVAL_IMG_RGB = _BASE_PATH + 'res/val/image_color_dir/img_rgb.png'
+_EVAL_THEME_RGB = _BASE_PATH + 'res/val/theme_dir/img_rgb.png'
+_EVAL_MASK = _BASE_PATH + 'res/val/theme_mask_dir/img_rgb.png'
+_EVAL_POINTS_RGB = _BASE_PATH + 'res/val/local_dir/img_rgb.png'
+_EVAL_POINTS_MASK = _BASE_PATH + 'res/val/local_mask_dir/img_rgb.png'
 
 _LOGS_DIR = _BASE_PATH + '/res/logs/'
 _EXT_LIST = ['png', 'png', 'png', 'png', 'png', 'png']

@@ -1,15 +1,11 @@
-import sys
 import matplotlib.pyplot as plt
 import datetime
 import os
 import gin
-import time
-import numpy as np
 import tensorflow as tf
 
-from src.dinterface.preprocess import preprocess_color
-from src.compression.compression_gan.data_utils import load_prepare_data_val, generate_images, load_norm_image, load_prepare_data_train, fit
-from src.compression.compression_gan.net_architecture import make_enc, make_gen, make_gan, make_multi_scale_disc, quantizer_theis
+from src.compression.data_utils import load_prepare_data_val, load_prepare_data_train, fit
+from src.compression.net_architecture import make_enc, make_gen, make_gan, make_multi_scale_disc
 
 # adjust as required
 path_to_dataset = '/home/daniel/imagenet-mini'
@@ -58,7 +54,8 @@ if not os.path.exists(data_prep):
     print('converting to GAN format...')
     init_reading(data, data_prep, input_dim_raw)
 """
-preprocess_color("/home/daniel/imagenet-mini") #TODO implement color only func
+# preprocess_color("/home/daniel/imagenet-mini", -1, -1)
+
 
 
 # load and preprocess dataset

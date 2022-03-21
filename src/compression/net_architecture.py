@@ -1,4 +1,4 @@
-from src.compression.compression_gan.arch_ops import ConvBlock, ResidualBlock, UpConvBlock, ChannelNorm
+from src.compression.arch_ops import ConvBlock, ResidualBlock, UpConvBlock, ChannelNorm
 import tensorflow as tf
 import tensorflow_addons as tfa
 from tensorflow.keras import layers

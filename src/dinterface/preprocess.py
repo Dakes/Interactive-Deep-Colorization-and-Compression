@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 
 sys.path.insert(1, os.path.join(sys.path[0], '../..'))
-from utils import add_color_pixels_rand_gt, imsegkmeans
+from src.dinterface.utils import add_color_pixels_rand_gt, imsegkmeans
 # from src.dinterface.utils import add_color_pixels_rand_gt, imsegkmeans
 from src.utils import files
 # import src.utils.files as files
@@ -90,7 +90,7 @@ def preprocess_color(dirs, num_points_pix, num_points_theme, random_crop=256, al
         dirs = files.config_parse(dirs=True)
 
     counter = 0
-    for dirpath, dnames, fnames in os.walk(dirs["original_img"]):
+    for dirpath, dnames, fnames in os.walk(dirs):
         for file in fnames:
             if file.lower().endswith(('.png', '.jpg', '.jpeg')):
                 counter += 1
@@ -102,18 +102,21 @@ def preprocess_color(dirs, num_points_pix, num_points_theme, random_crop=256, al
                 item_path = os.path.join(dirpath, file)
                 img = cv2.imread(item_path)
                 if random_crop:
-                    img = crop(dirs, img, random_crop)
+                    try:
+                        img = crop(img, random_crop)
+                    except ValueError:
+                        continue
 
                 if align:
                     h, w, _ = img.shape
                     if h > w:
                         img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
-                local_gen_save(dirs, img, temp_fn, num_points_pix)
+                # local_gen_save(dirs, img, temp_fn, num_points_pix)
                 if not only_locals:
-                    theme_gen_save(dirs, img, temp_fn, num_points_theme, save_segmented)
+                    # theme_gen_save(dirs, img, temp_fn, num_points_theme, save_segmented)
                     # save alined?? But not like this
-                    # cv2.imwrite(dirs["original_img"] + temp_fn + '.png', img, [int(cv2.IMWRITE_PNG_COMPRESSION),0])
+                    cv2.imwrite("/home/daniel/PycharmProjects/Interactive-Deep-Colorization-and-Compression/res/eval/original_img/" + '/' + temp_fn + '.png', img, [int(cv2.IMWRITE_PNG_COMPRESSION), 0]) #TODO adjust path
 
 
 def dataset_prepare(dirs):

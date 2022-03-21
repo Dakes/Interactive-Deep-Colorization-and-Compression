@@ -3,11 +3,9 @@ import time
 import os
 import tensorflow as tf
 import matplotlib.pyplot as plt
-import cv2
-import numpy as np
 
-from src.compression.compression_gan.net_architecture import quantizer_theis
-from src.compression.compression_gan.net_loss import gen_loss, disc_loss
+from src.compression.net_architecture import quantizer_theis
+from src.compression.net_loss import gen_loss, disc_loss
 
 
 def load_prepare_data_val(input_dir, batch_size, input_dim_target, full_res=False):
@@ -21,7 +19,7 @@ def load_prepare_data_val(input_dir, batch_size, input_dim_target, full_res=Fals
     :return:
     """
     mode = 'train' if full_res else 'valid'
-    val_dataset = tf.data.Dataset.list_files(input_dir + 'val/*.png')
+    val_dataset = tf.data.Dataset.list_files(input_dir + 'eval/original_img/*.png')
 
     val_dataset = val_dataset.map(lambda x: load_norm_image(x, input_dim_target, mode=mode),
                                   num_parallel_calls=tf.data.experimental.AUTOTUNE)
@@ -36,8 +34,8 @@ def load_norm_image(image_file, input_dim_target, mode='train'):
     input_image = tf.cast(input_image, tf.float32)
 
     # randomly cropping to input_dim_target
-    if not mode == 'train':
-        input_image = tf.image.random_crop(input_image, size=input_dim_target)
+    #if not mode == 'train':
+         #input_image = tf.image.random_crop(input_image, size=input_dim_target)
 
     # normalize images to [-1, 1]
     input_image = (input_image / 127.5) - 1
@@ -72,7 +70,7 @@ def load_prepare_data_train(input_dir, batch_size, buf_size, input_dim_target):
     :return:
     """
 
-    train_dataset = tf.data.Dataset.list_files(input_dir + 'train/*.JPEG')
+    train_dataset = tf.data.Dataset.list_files(input_dir + 'train/*.png')
     train_dataset = train_dataset.map(lambda x: load_norm_image(x, input_dim_target, mode='train'),
                                       num_parallel_calls=tf.data.experimental.AUTOTUNE)
     train_dataset = train_dataset.shuffle(buf_size)

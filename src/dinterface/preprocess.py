@@ -44,7 +44,7 @@ def load_img(filepath, gray=False):
     :return: None if file not exists
     """
     img = None
-    if os.path.isfile(filepath) or os.path.islink(filepath):
+    if (os.path.isfile(filepath) or os.path.islink(filepath) ) and filepath.lower().endswith(('.jpg', '.jpeg', ".png", ".tiff")):
         img = cv2.imread(filepath)
         rgb = False
         if filepath.lower().endswith(('.jpg', '.jpeg')):
@@ -146,7 +146,7 @@ def crop(img, random_crop=256, fn=""):
 
 def _gt_gen(img, filename, new_dir, random_crop=256, overwrite=False):
     h, w = get_h_w(img)
-    if h < random_crop or w < random_crop:
+    if h <= random_crop or w <= random_crop:
         return None
     gt_path = new_dir + filename
     if overwrite or not os.path.isfile(gt_path):
@@ -261,7 +261,7 @@ def dataset_prepare(set="train", max_img=None):
     counter = 0
     for dirpath, _, fnames in os.walk(dirs["dataset"]+set):
         for file in fnames:
-            if file.lower().endswith(('.png', '.jpg', '.jpeg')):
+            if file.lower().endswith(('.png', '.jpg', '.jpeg', '.tiff')):
                 if max_img is not None and counter >= max_img:
                     break
                 counter += 1

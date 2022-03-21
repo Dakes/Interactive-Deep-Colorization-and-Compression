@@ -1,31 +1,53 @@
-import model
-import input_data
+import os, sys
 import matplotlib.pyplot as plt
 import time
-import os
+import pathlib
 import tensorflow as tf
 import numpy as np
 
+sys.path.insert(1, os.path.abspath(os.path.join(pathlib.Path(__file__).parent.resolve(), '../..')))
+print(os.path.abspath(os.path.join(pathlib.Path(__file__).parent.resolve(), '../..')))
+import model
+import input_data
 from src.utils.logger import Logger
 
-_BASE_PATH = '/home/nikolai10/IdeaProjects/xiao-et-al-remastered-demo/'
+# from utils import add_color_pixels_rand_gt, imsegkmeans
+from src.utils import files
 
-_IMAGE_COLOR_DIR = _BASE_PATH + 'res/data/image_color_dir'
-_COLOR_MAP_DIR = _BASE_PATH + 'res/data/color_map_dir'
-_THEME_DIR = _BASE_PATH + 'res/data/theme_dir'
-_THEME_MASK_DIR = _BASE_PATH + 'res/data/theme_mask_dir'
-_LOCAL_DIR = _BASE_PATH + 'res/data/local_dir'
-_LOCAL_MASK_DIR = _BASE_PATH + 'res/data/local_mask_dir'
+dirs = files.config_parse(dirs=True)
 
-_EVAL_IMG_RGB = _BASE_PATH + 'res/eval/image_color_dir/img_rgb.png'
-_EVAL_THEME_RGB = _BASE_PATH + 'res/eval/theme_dir/img_rgb.png'
-_EVAL_MASK = _BASE_PATH + 'res/eval/theme_mask_dir/img_rgb.png'
-_EVAL_POINTS_RGB = _BASE_PATH + 'res/eval/local_dir/img_rgb.png'
-_EVAL_POINTS_MASK = _BASE_PATH + 'res/eval/local_mask_dir/img_rgb.png'
 
-_LOGS_DIR = _BASE_PATH + '/res/logs/'
+# TODO: remove. These are technically not needed any more, paths are directly set in preprocess from config
+_BASE_PATH = '/home/kiadmin/projects/Interactive-Deep-Colorization-and-Compression/'
+
+# _IMAGE_COLOR_DIR = _BASE_PATH + 'res/data/image_color_dir'
+_IMAGE_COLOR_DIR = dirs["train"] + dirs["ground_truth"]
+# _COLOR_MAP_DIR = _BASE_PATH + 'res/data/color_map_dir'
+_COLOR_MAP_DIR = dirs["train"] + dirs["color_map"]
+# _THEME_DIR = _BASE_PATH + 'res/data/theme_dir'
+_THEME_DIR = dirs["train"] + dirs["theme_rgb"]
+# _THEME_MASK_DIR = _BASE_PATH + 'res/data/theme_mask_dir'
+_THEME_MASK_DIR = dirs["train"] + dirs["theme_mask"]
+# _LOCAL_DIR = _BASE_PATH + 'res/data/local_dir'
+_LOCAL_DIR = dirs["train"] + dirs["local_hints"]
+# _LOCAL_MASK_DIR = _BASE_PATH + 'res/data/local_mask_dir'
+_LOCAL_MASK_DIR = dirs["train"] + dirs["local_mask"]
+
+# _EVAL_IMG_RGB = _BASE_PATH + 'res/eval/image_color_dir/img_rgb.png'
+_EVAL_IMG_RGB = dirs["val"] + dirs["ground_truth"]
+# _EVAL_THEME_RGB = _BASE_PATH + 'res/eval/theme_dir/img_rgb.png'
+_EVAL_THEME_RGB = dirs["val"] + dirs["theme_rgb"]
+# _EVAL_MASK = _BASE_PATH + 'res/eval/theme_mask_dir/img_rgb.png'
+_EVAL_MASK = dirs["val"] + dirs["theme_mask"]
+# _EVAL_POINTS_RGB = _BASE_PATH + 'res/eval/local_dir/img_rgb.png'
+_EVAL_POINTS_RGB = dirs["val"] + dirs["local_hints"]
+# _EVAL_POINTS_MASK = _BASE_PATH + 'res/eval/local_mask_dir/img_rgb.png'
+_EVAL_POINTS_MASK = dirs["val"] + dirs["local_mask"]
+
+# _LOGS_DIR = _BASE_PATH + '/res/logs/'
+_LOGS_DIR = dirs["logs"]
 _EXT_LIST = ['png', 'png', 'png', 'png', 'png', 'png']
-_NAME_LIST = ['color img', 'theme img', 'theme mask', 'color_map img', 'local img', 'local mask']
+_NAME_LIST = ['gt img', 'theme img', 'theme mask', 'color_map img', 'local img', 'local mask']
 
 
 # first step: without residual network
@@ -45,7 +67,8 @@ def train1():
     logs_dir = _LOGS_DIR + 'run_1/'
     train_logger = Logger()
     test_logger = Logger()
-    fw = tf.compat.v1.summary.FileWriter(logs_dir, graph=sess.graph)
+    # fw = tf.compat.v1.summary.FileWriter(logs_dir, graph=sess.graph)
+    fw = tf.summary.create_file_writer(logs_dir)
 
     # get the training data
     train_list = input_data.get_train_list(
@@ -218,7 +241,7 @@ def train2():
     test_psnr0 = 10 * tf.math.log(1 / (tf.reduce_mean(input_tensor=tf.square(test_rgb_out0 - image_rgb_test)))) / np.log(10)
     test_psnr = 10 * tf.math.log(1 / (tf.reduce_mean(input_tensor=tf.square(test_rgb_out - image_rgb_test)))) / np.log(10)
 
-    # 训练残差网络
+    # 训练残差网络 / Train the residual network
     var_list = tf.compat.v1.global_variables()
     var_model1 = [var for var in var_list if var.name.startswith('UserGuide')]
     var_model2 = [var for var in var_list if var.name.startswith('PRLNet')]
@@ -468,6 +491,6 @@ def train3():
 
 
 if __name__ == '__main__':
-    #train1()
-    #train2()
-    train3()
+    train1()
+    # train2()
+    # train3()

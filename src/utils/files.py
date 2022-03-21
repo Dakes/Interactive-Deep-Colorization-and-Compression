@@ -7,11 +7,13 @@ import configparser
 from pathlib import Path
 
 
+# LEGACY
 def create_dirs(dirs):
     # create dir if not exists
     for key in dirs:
         if not os.path.exists(dirs[key]):
             os.makedirs(dirs[key])
+
 
 def config_parse(dirs=False):
     """
@@ -22,7 +24,7 @@ def config_parse(dirs=False):
     config_path = os.path.join(proj_root, "config.cfg")
     config = configparser.ConfigParser()
     config.read(config_path)
-    create_dirs(config["dir"])
+    # create_dirs(config["dir"])
     if dirs:
         return config["dir"]
     else:

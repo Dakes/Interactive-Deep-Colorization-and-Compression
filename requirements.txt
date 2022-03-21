@@ -3,3 +3,5 @@ opencv-python
 matplotlib
 scikit-image
 configparser
+tqdm
+cachier

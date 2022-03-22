@@ -11,8 +11,8 @@ setup_optimizer.use_lpips = True
 setup_optimizer.use_feature_matching = False
 
 # Shared specs (G and D)
-shared_specs.epochs = 3
-shared_specs.batch_size = 3
+shared_specs.epochs = 1
+shared_specs.batch_size = 1
 shared_specs.k_beta = 0.05                      # GAN loss scaler
 shared_specs.k_m = 0.5                          # MSE loss scaler (always 0.5)
 shared_specs.k_p = 0.5                          # LPIPS loss scaler (always 0.5)
@@ -32,7 +32,7 @@ io.lpips_weights = '/res/out/gen_compression_color/model/lpips_weights'
 
 # ============================================================
 # Dataset (imagenet dataset)
-io.input_dim_raw = (512, 1024, 3)
+io.input_dim_raw = (256, 256, 3)
 io.input_dim_target = (256, 256, 3)
 io.buf_size = 2975
 io.data = '/imagenet-mini/' # probably not needed, preprocessing is done outside of the compression nets

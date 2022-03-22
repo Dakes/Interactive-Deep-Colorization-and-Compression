@@ -32,7 +32,7 @@ io.lpips_weights = '/res/out/gen_compression_gray/model/lpips_weights'
 
 # ============================================================
 # Dataset (imagenet dataset)
-io.input_dim_raw = (512, 1024, 3)
+io.input_dim_raw = (256, 256, 1)
 io.input_dim_target = (256, 256, 1)
 io.buf_size = 2975
 io.data = '/imagenet-mini/' # probably not needed, preprocessing is done outside of the compression nets

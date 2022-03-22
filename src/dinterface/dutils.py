@@ -1,5 +1,7 @@
+import os
 import cv2
 import numpy as np
+import tensorflow as tf
 
 # TODO move to config?
 _MIN_POINTS_THEME = 3
@@ -82,3 +84,14 @@ def imsegkmeans(rgb_img, num_points):
 
     # reshape back to the original image dimension
     return segmented_image.reshape(rgb_img.shape), sorted_centers_padded, mask
+
+def arr2tf(img):
+    """
+    assumes already loaded as RGB
+    """
+    return tf.keras.preprocessing.image.array_to_img(img)
+
+def get_fn_wo_ext(fn):
+    if fn.lower().endswith(('.png', '.jpg', '.jpeg')):
+        fn = os.path.splitext(fn)[0]
+    return fn

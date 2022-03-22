@@ -21,14 +21,13 @@ shared_specs.channel_bottleneck = 8
 shared_specs.disc_scale = 3
 
 # I/O and data structure
-io.base_path = '/home/daniel' # TODO change to /home/kiadmin/projects when training on server
-io.code_directory = '/PycharmProjects/Interactive-Deep-Colorization-and-Compression' # TODO remove /PycharmProjects when training
-io.ckpt_dir = '/res/out/gen_compression_color/training_checkpoints'
-io.gen_imgs_dir = '/res/out/gen_compression_color/images/'
-io.tb_dir = '/res/out/gen_compression_color/tensorboard/'
-io.model_dir = '/res/out/gen_compression_color/model/'
-io.log_dir = '/res/out/gen_compression_color/log_dir/'
-io.lpips_weights = '/res/out/gen_compression_color/model/lpips_weights'
+io.base_path = '/home/kiadmin/projects/Interactive-Deep-Colorization-and-Compression/'
+io.ckpt_dir = 'res/out/gen_compression_color/training_checkpoints'
+io.gen_imgs_dir = 'res/out/gen_compression_color/images/'
+io.tb_dir = 'res/out/gen_compression_color/tensorboard/'
+io.model_dir = 'res/out/gen_compression_color/model/'
+io.log_dir = 'res/out/gen_compression_color/log_dir/'
+io.lpips_weights = 'res/out/gen_compression_color/model/lpips_weights'
 
 # ============================================================
 # Dataset (imagenet dataset)
@@ -36,4 +35,4 @@ io.input_dim_raw = (256, 256, 3)
 io.input_dim_target = (256, 256, 3)
 io.buf_size = 2975
 io.data = '/imagenet-mini/' # probably not needed, preprocessing is done outside of the compression nets
-io.data_prep = '/res/'
+io.data_prep = 'res/'

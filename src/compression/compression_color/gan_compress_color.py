@@ -27,16 +27,16 @@ def get_shared_specs(epochs, batch_size, k_beta, k_m, k_p, k_fm, channel_bottlen
 
 
 @gin.configurable('io')
-def setup_io(base_path, code_directory, ckpt_dir, tb_dir, gen_imgs_dir, model_dir, log_dir, lpips_weights, input_dim_raw,
+def setup_io(base_path, ckpt_dir, tb_dir, gen_imgs_dir, model_dir, log_dir, lpips_weights, input_dim_raw,
              input_dim_target, data, data_prep, buf_size):
-    ckpt_path = base_path + code_directory + ckpt_dir
-    tb_path = base_path + code_directory + tb_dir
-    gen_path = base_path + code_directory + gen_imgs_dir
-    model_path = base_path + code_directory + model_dir
-    log_path = base_path + code_directory + log_dir
-    lpips_path = base_path + code_directory + lpips_weights
+    ckpt_path = base_path + ckpt_dir
+    tb_path = base_path + tb_dir
+    gen_path = base_path + gen_imgs_dir
+    model_path = base_path + model_dir
+    log_path = base_path + log_dir
+    lpips_path = base_path + lpips_weights
     data = base_path + data
-    data_prep = base_path + code_directory + data_prep
+    data_prep = base_path + data_prep
     return ckpt_path, tb_path, gen_path, model_path, log_path, input_dim_raw, input_dim_target, data, data_prep, lpips_path, buf_size
 
 

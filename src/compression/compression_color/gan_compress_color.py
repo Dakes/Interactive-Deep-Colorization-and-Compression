@@ -1,14 +1,17 @@
+import sys
+import pathlib
 import matplotlib.pyplot as plt
 import datetime
 import os
 import gin
 import tensorflow as tf
 
+sys.path.insert(1, os.path.abspath(os.path.join(pathlib.Path(__file__).parent.resolve(), '../../..')))
 from src.compression.shared.data_utils import load_prepare_data_val, load_prepare_data_train, fit
 from src.compression.shared.net_architecture import make_enc, make_gen, make_gan, make_multi_scale_disc
 
 
-GIN_FIN = 'extreme_compression_color.gin'
+GIN_FIN = 'src/compression/compression_color/extreme_compression_color.gin'
 STRFTIME_FORMAT = "%Y%m%d-%H%M%S"
 
 plt.rcParams['figure.figsize'] = [16, 9]

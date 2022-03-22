@@ -46,6 +46,12 @@ def load_img(filepath, gray=False):
     img = None
     if (os.path.isfile(filepath) or os.path.islink(filepath) ) and filepath.lower().endswith(('.jpg', '.jpeg', ".png", ".tiff")):
         img = cv2.imread(filepath)
+        # if None: broken file (0B). Delete, return.
+        if img is None:
+            print("Broken file detected. Deleting:", filepath)
+            os.remove(filepath)
+            return None
+
         rgb = False
         if filepath.lower().endswith(('.jpg', '.jpeg')):
             rgb = True
@@ -285,9 +291,15 @@ def main():
 
     sets = ["train", "val"]
     for set in sets:
+        print("\n =========================")
+        print("Preprocessing for", set)
+        print("----------- Color -----------")
         preprocess_color(num_points_pix=100, num_points_theme=6, random_crop=256, set=set,
                          locals=True, theme=True, segmented=True, overwrite=False)
+        print("----------- Grayscale -----------")
         preprocess_grayscale(random_crop=256, set=set, overwrite=False)
+
+    print("========= Preprocessing Done =========")
 
 
 if __name__ == '__main__':

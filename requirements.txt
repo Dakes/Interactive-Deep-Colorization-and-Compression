@@ -1,7 +1,10 @@
 tensorflow
+tensorflow_addons
 opencv-python
 matplotlib
 scikit-image
 configparser
+gin-config
+
 tqdm
 cachier

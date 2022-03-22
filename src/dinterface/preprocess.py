@@ -28,7 +28,10 @@ def cache_img(img, filepath, overwrite, png_compression=0):
         filepath = filepath + ".png"
     if not os.path.isdir(os.path.dirname(filepath)):
         print("Creating dir:", os.path.dirname(filepath))
-        os.makedirs(os.path.dirname(filepath))
+        try:
+            os.makedirs(os.path.dirname(filepath))
+        except FileExistsError:
+            pass
 
     if not os.path.isfile(filepath) and not os.path.islink(filepath):
         cv2.imwrite(filepath, img, [int(cv2.IMWRITE_PNG_COMPRESSION), png_compression])
@@ -304,9 +307,9 @@ def main():
         print("Preprocessing for", set)
         print("----------- Color -----------")
         preprocess_color(num_points_pix=-1, num_points_theme=6, random_crop=256, set=set,
-                         ground_truth=False, locals=True, theme=False, segmented=False, overwrite=True)
-        # print("----------- Grayscale -----------")
-        # preprocess_grayscale(random_crop=256, set=set, overwrite=False)
+                         ground_truth=True, locals=True, theme=True, segmented=True, overwrite=True)
+        print("----------- Grayscale -----------")
+        preprocess_grayscale(random_crop=256, set=set, overwrite=False)
 
     print("========= Preprocessing Done =========")
 

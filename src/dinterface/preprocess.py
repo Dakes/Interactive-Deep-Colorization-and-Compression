@@ -87,6 +87,8 @@ def theme_gen(filename, set="train", num_points_theme=6, save_segmented=False, o
     if overwrite or theme is None or mask is None:
         gt_path = dirs[set] + dirs["ground_truth"] + filename + ".png"
         gt = load_img(gt_path)
+        if gt is None:
+            return None
         segmented_img, theme, mask = imsegkmeans(gt, num_points_theme)
         cache_img(theme, theme_path, overwrite)
         cache_img(mask, mask_path, overwrite)
@@ -113,6 +115,8 @@ def local_gen(filename, num_points_pix=-1, set="train", overwrite=False):
     if overwrite or points_rgb is None or points_mask is None:
         gt_path = dirs[set] + dirs["ground_truth"] + filename + ".png"
         gt = load_img(gt_path)
+        if gt is None:
+            return
         points_mask, points_rgb = add_color_pixels_rand_gt(gt, num_points_pix)
         cache_img(points_mask, mask_path, overwrite)
         cache_img(points_rgb, points_path, overwrite)
@@ -151,6 +155,8 @@ def crop(img, random_crop=256, fn=""):
     return img[sample_h:sample_h + random_crop, sample_w:sample_w + random_crop]
 
 def _gt_gen(img, filename, new_dir, random_crop=256, overwrite=False):
+    if img is None:
+        return None
     h, w = get_h_w(img)
     if h <= random_crop or w <= random_crop:
         return None
@@ -197,19 +203,21 @@ def preprocess_grayscale(random_crop=256, set="train", overwrite=False):
 
 
 def preprocess_color_once(file, num_points_pix, num_points_theme, random_crop, set,
-                           locals, theme, segmented, overwrite):
+                           ground_truth, locals, theme, segmented, overwrite):
     fn_wo_ext = get_fn_wo_ext(file)
-    img = gt_gen_color(file, set, random_crop, overwrite)
-    # if img < random crop (None), skip
-    if img is None:
-        return
+    if ground_truth:
+        img = gt_gen_color(file, set, random_crop, overwrite)
+        # if img < random crop (None), skip
+        if img is None:
+            return
+
     if locals:
         local_gen(fn_wo_ext, num_points_pix, set, overwrite)
     if theme:
         theme_gen(fn_wo_ext, set, num_points_theme, save_segmented=segmented, overwrite=overwrite)
 
 def preprocess_color(num_points_pix, num_points_theme, random_crop=256, set="train",
-                     locals=True, theme=True, segmented=True, overwrite=False):
+                     ground_truth=True, locals=True, theme=True, segmented=True, overwrite=False):
     """
     clean python implementation of:
     https://github.com/praywj/Interactive-Deep-Colorization-and-Compression/tree/master/prepare_dataset
@@ -218,6 +226,7 @@ def preprocess_color(num_points_pix, num_points_theme, random_crop=256, set="tra
     :param num_points_pix:
     :param num_points_theme:
     :param random_crop: target size of crop. If false/0, don't crop
+    :param ground_truth: gen and save ground_truth. Needed for first run. Good to save time later
     :param locals: gen and save locals
     :param theme: gen and save theme
     :param segmented: gen and save theme segmented (k-means)
@@ -236,7 +245,7 @@ def preprocess_color(num_points_pix, num_points_theme, random_crop=256, set="tra
 
 
     starmap_input = zip(orig_img_list, rep(num_points_pix), rep(num_points_theme), rep(random_crop), rep(set),
-                        rep(locals), rep(theme), rep(segmented), rep(overwrite))
+                        rep(ground_truth), rep(locals), rep(theme), rep(segmented), rep(overwrite))
     with Pool(processes=cpus) as pool:
         pool.starmap(preprocess_color_once, tqdm.tqdm(starmap_input, total=len(orig_img_list)))
 
@@ -294,10 +303,10 @@ def main():
         print("\n =========================")
         print("Preprocessing for", set)
         print("----------- Color -----------")
-        preprocess_color(num_points_pix=100, num_points_theme=6, random_crop=256, set=set,
-                         locals=True, theme=True, segmented=True, overwrite=False)
-        print("----------- Grayscale -----------")
-        preprocess_grayscale(random_crop=256, set=set, overwrite=False)
+        preprocess_color(num_points_pix=-1, num_points_theme=6, random_crop=256, set=set,
+                         ground_truth=False, locals=True, theme=False, segmented=False, overwrite=True)
+        # print("----------- Grayscale -----------")
+        # preprocess_grayscale(random_crop=256, set=set, overwrite=False)
 
     print("========= Preprocessing Done =========")
 

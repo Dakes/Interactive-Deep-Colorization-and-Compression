@@ -157,7 +157,7 @@ def compute_perceptual_loss(x, x_hat, lpips_path):
 
 class LPIPSLoss(object):
     """
-    Calcualte LPIPS loss based on:
+    Calculate LPIPS loss based on:
     https://github.com/tensorflow/compression/blob/master/models/hific/model.py
 
     call: lpips_loss = LPIPSLoss(_lpips_weight_path)
@@ -199,5 +199,10 @@ class LPIPSLoss(object):
 
         fake_image = _transpose_to_nchw(fake_image)
         real_image = _transpose_to_nchw(real_image)
+        if fake_image.shape[1] == 1:
+            # broadcasting the grayscale image of dim (1, 1, 256, 256) to (1, 3, 256, 256) to use lpips on 3 identical
+            # "color" channels
+            fake_image = tf.broadcast_to(fake_image,[1, 3, 256, 256])
+            real_image = tf.broadcast_to(real_image, [1, 3, 256, 256])
         loss = self._lpips_func(fake_image, real_image)
         return tf.reduce_mean(loss)  # Loss is N111, take mean to get scalar.

@@ -84,7 +84,7 @@ def quantizer_theis(w):
     return outputs
 
 
-def make_gen(input_dim, gen_path, num_up=4, num_filters_base=60, num_residual_blocks=9, vis_model=True):
+def make_gen(input_dim, gen_path, num_up=4, num_filters_base=60, num_residual_blocks=9, gray=False, vis_model=True):
     """
     fully convolutional decoder based on
     - https://arxiv.org/pdf/1804.02958.pdf
@@ -136,7 +136,10 @@ def make_gen(input_dim, gen_path, num_up=4, num_filters_base=60, num_residual_bl
 
     # final conv layer
     # note: tf.clip_by_value(nodes_gen.reconstruction, 0, 255.) is used later on to restore the original values range
-    restored_image = layers.Conv2D(filters=3, kernel_size=(7, 7), padding='same', name='c7s1-3')(up)
+    if gray:
+        restored_image = layers.Conv2D(filters=1, kernel_size=(7, 7), padding='same', name='c7s1-1')(up)
+    else:
+        restored_image = layers.Conv2D(filters=3, kernel_size=(7, 7), padding='same', name='c7s1-3')(up)
     restored_image = tf.nn.tanh(restored_image)
 
     # define model

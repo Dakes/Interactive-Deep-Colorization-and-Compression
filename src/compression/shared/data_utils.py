@@ -42,7 +42,7 @@ def load_norm_image(image_file):
     return input_image
 
 
-def generate_images(encoder, decoder, example_input):
+def generate_images(encoder, decoder, example_input, gray=False):
     w = encoder(example_input, training=False)
     z = quantizer_theis(w)
     x_hat = decoder(z, training=False)
@@ -55,7 +55,10 @@ def generate_images(encoder, decoder, example_input):
     for i in range(2):
         plt.subplot(1, 2, i + 1)
         plt.title(title[i])
-        plt.imshow(display_list[i] * 0.5 + 0.5)
+        if gray:
+            plt.imshow(display_list[i] * 0.5 + 0.5, cmap='gray')
+        else:
+            plt.imshow(display_list[i] * 0.5 + 0.5)
         plt.axis('off')
     plt.show()
 
@@ -98,7 +101,7 @@ def load_norm_image(image_file, input_dim_target, mode='train'):
 """
 
 def fit(train_ds, val_ds, epochs, ckpt, ckpt_prefix, gan, encoder, decoder, disc, sum_writer, enc_dec_opt, disc_opt,
-        gan_loss, k_beta, k_m, k_p, k_fm, gen_path, lpips_path, model_path, use_lpips, use_feature_matching,
+        gan_loss, k_beta, k_m, k_p, k_fm, gen_path, lpips_path, model_path, use_lpips, use_feature_matching, gray=False,
         warm_up=False, load_ckpts=True):
     if not os.path.exists(model_path):
         os.makedirs(model_path)
@@ -118,7 +121,7 @@ def fit(train_ds, val_ds, epochs, ckpt, ckpt_prefix, gan, encoder, decoder, disc
         start = time.time()
 
         for example_input in val_ds.take(1):
-            generate_images(encoder, decoder, example_input)
+            generate_images(encoder, decoder, example_input, gray)
 
         print("Epoch: ", epoch)
 

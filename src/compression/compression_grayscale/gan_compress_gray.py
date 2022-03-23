@@ -64,8 +64,8 @@ train_ds = load_prepare_data_train(data_prep, batch_size, buf_size, True)
 val_ds = load_prepare_data_val(data_prep, True)
 
 h_transform, w_transform = input_dim_raw[0] // 16, input_dim_raw[1] // 16
-encoder = make_enc(gen_path, num_filters_bottleneck=channel_bottleneck, vis_model=False)
-decoder = make_gen((h_transform, w_transform, channel_bottleneck), gen_path, vis_model=False)
+encoder = make_enc(gen_path, num_filters_bottleneck=channel_bottleneck, vis_model=False, input=(None, None, 1))
+decoder = make_gen((h_transform, w_transform, channel_bottleneck), gen_path, gray=True, vis_model=False)
 disc = make_multi_scale_disc((h_transform, w_transform, channel_bottleneck), input_dim_raw, gen_path, vis_model=False)
 
 # build composite model (update G through composite model)
@@ -81,7 +81,7 @@ ckpt = tf.train.Checkpoint(encoder_decoder_optimizer=enc_dec_opt,
 
 sum_wr = tf.summary.create_file_writer(log_path + "fit/" + datetime.datetime.now().strftime(STRFTIME_FORMAT))
 fit(train_ds, val_ds, epochs, ckpt, ckpt_pref, gan, encoder, decoder, disc, sum_wr, enc_dec_opt, disc_opt, gan_loss, k_beta, k_m, k_p,
-        k_fm, gen_path, lpips_path, model_path, use_lpips, use_feature_matching, warm_up=True)
+        k_fm, gen_path, lpips_path, model_path, use_lpips, use_feature_matching, gray=True, warm_up=True)
 
 ckpt.restore(tf.train.latest_checkpoint(ckpt_path))
 
@@ -91,7 +91,7 @@ ckpt.restore(tf.train.latest_checkpoint(ckpt_path))
 #    generate_images(encoder, decoder, inp)
 
 #fit(train_ds, val_ds, epochs, ckpt, ckpt_pref, gan, encoder, decoder, disc, sum_wr, enc_dec_opt, disc_opt, gan_loss, k_beta, k_m, k_p,
-#        k_fm, gen_path, lpips_path, model_path, use_lpips, use_feature_matching, warm_up=False)
+#        k_fm, gen_path, lpips_path, model_path, use_lpips, use_feature_matching, gray=True warm_up=False)
 
 
 # Run the trained model on a few examples from the test dataset

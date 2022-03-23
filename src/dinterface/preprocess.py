@@ -2,7 +2,7 @@
 Calling this file from commandline, preprocesses all images with default parameters
 """
 
-import os
+import os, sys
 import cv2
 import numpy as np
 import pathlib
@@ -20,7 +20,7 @@ dirs = files.config_parse(dirs=True)
 
 ORIG_EXT = ".JPEG"
 
-def theme_gen_save(dirs, img, filename, num_points_theme=6):
+def cache_img(img, filepath, overwrite, png_compression=0):
     """
     Saves to disk, only if not already present
     """
@@ -80,7 +80,6 @@ def theme_gen(filename, set="train", num_points_theme=6, save_segmented=False, o
     :param overwrite: if True, overwrite existing files
     """
     filename = get_fn_wo_ext(filename)
-
     theme_path = dirs[set] + dirs["theme_rgb"] + filename + '.png'
     mask_path = dirs[set] + dirs["theme_mask"] + filename + '.png'
     segmented_path = dirs[set] + dirs["color_map"] + filename + '.png'
@@ -111,7 +110,6 @@ def local_gen(filename, num_points_pix=-1, set="train", overwrite=False):
     :param overwrite: if True, overwrite existing files
     """
     filename = get_fn_wo_ext(filename)
-
     mask_path = dirs[set] + dirs["local_mask"] + filename + '.png'
     points_path = dirs[set] + dirs["local_hints"] + filename + '.png'
     points_rgb = load_img(points_path)
@@ -208,7 +206,7 @@ def preprocess_grayscale(random_crop=256, set="train", overwrite=False):
 
 
 def preprocess_color_once(file, num_points_pix, num_points_theme, random_crop, set,
-                           ground_truth, locals, theme, segmented, overwrite):
+                          ground_truth, locals, theme, segmented, overwrite):
     fn_wo_ext = get_fn_wo_ext(file)
     if ground_truth:
         img = gt_gen_color(file, set, random_crop, overwrite)
@@ -226,7 +224,7 @@ def preprocess_color(num_points_pix, num_points_theme, random_crop=256, set="tra
     """
     clean python implementation of:
     https://github.com/praywj/Interactive-Deep-Colorization-and-Compression/tree/master/prepare_dataset
-    iterates through "ground_truth" folder, to prepare color cues
+    iterates through "original_img" folder, to prepare color cues
 
     :param num_points_pix:
     :param num_points_theme:

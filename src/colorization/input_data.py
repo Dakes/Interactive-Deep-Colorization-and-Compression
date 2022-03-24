@@ -3,6 +3,7 @@ import time
 import pathlib
 import tensorflow as tf
 import numpy as np
+import random
 from cachier import cachier
 import datetime
 
@@ -15,6 +16,7 @@ from src.utils import files as files
 dirs = files.config_parse(dirs=True)
 pp_params = files.config_parse()["preprocess"]
 
+'''
 @cachier(stale_after=datetime.timedelta(days=1))
 def get_all_paths(root_dir, ext='png', basename=False):
     """
@@ -66,61 +68,87 @@ def get_train_list(dir_list, name_list, ext_list, shuffle=True, set="train"):
             train_list[i] = item[rnd_index]
 
     return tuple(train_list)
+'''
 
+# @cachier(stale_after=datetime.timedelta(days=1))
+def get_all_paths(root_dir, ext='png', single_img_name=None):
+    root_dir = pathlib.Path(root_dir)
+    glob_str = '*.' + ext
+    if single_img_name:
+        glob_str = dutils.get_fn_wo_ext(single_img_name) + "." + ext
+    file_paths = list(map(str, root_dir.rglob(glob_str)))
+    return file_paths
+
+def get_train_list(dir_list, name_list, ext_list, shuffle=True, single_img_name=None):
+    train_list = []
+    for root_dir, name, ext in zip(dir_list, name_list, ext_list):
+        tic = time.time()
+        file_paths = sorted(get_all_paths(root_dir, ext))
+        toc = time.time()
+        print('[Type:%s][File nums: %d, Time_cost: %.2fs]' % (name, len(file_paths), toc - tic))
+        train_list.append(np.asarray(file_paths))
+
+    if shuffle:
+        file_count = len(train_list[0])
+        rnd_index = np.arange(file_count) - 2
+        np.random.shuffle(rnd_index)
+        for i, item in enumerate(train_list):
+            train_list[i] = item[rnd_index]
+
+    return tuple(train_list)
 
 # both
 def get_batch(train_list, image_size, batch_size, capacity, is_random=True, only_globals=False):
-    # TODO NEXT: fix eager execution bug
     tf.compat.v1.disable_eager_execution()
-    print("train_list: ", train_list[0])
+    print("train_list: ", train_list)
 
     filepath_queue = tf.compat.v1.train.slice_input_producer(train_list, shuffle=False)
     # filepath_queue = tf.data.Dataset.from_tensor_slices(tuple(train_list))
     # print("\nTrain_list:", train_list)
-    print("\nfilepath_queue:", filepath_queue.numpy())
-    print("\nfilepath_queue STR ===:", filepath_queue[0].numpy() )
-    fn_wo_ext = dutils.get_fn_wo_ext(filepath_queue[0])
+    # print("\nfilepath_queue:", filepath_queue.numpy())
+    # print("\nfilepath_queue STR ===:", filepath_queue[0].numpy() )
+    # fn_wo_ext = dutils.get_fn_wo_ext(filepath_queue[0])
     img_size_h, img_size_w = image_size
 
     # color
-    # image_rgb = tf.io.read_file(filepath_queue[0])
-    # image_rgb = tf.image.decode_png(image_rgb, channels=3)
-    image_rgb = preprocess.gt_gen_color(filepath_queue[0], set="train", random_crop=image_size)
+    image_rgb = tf.io.read_file(filepath_queue[0])
+    image_rgb = tf.image.decode_png(image_rgb, channels=3)
+    # image_rgb = preprocess.gt_gen_color(filepath_queue[0], set="train", random_crop=image_size)
     image_rgb = tf.image.resize(image_rgb, [img_size_h, img_size_w])
     image_rgb = tf.cast(image_rgb, tf.float32) / 255.  # 归一化到[0, 1]
 
     # Theme
-    theme_rgb, theme_mask, index_rgb = preprocess.theme_gen(fn_wo_ext, set="train", num_points_theme=6)
+    # theme_rgb, theme_mask, index_rgb = preprocess.theme_gen(fn_wo_ext, set="train", num_points_theme=6)
     # color theme
-    # theme_rgb = tf.io.read_file(filepath_queue[1])
-    # theme_rgb = tf.image.decode_png(theme_rgb, channels=3)
+    theme_rgb = tf.io.read_file(filepath_queue[1])
+    theme_rgb = tf.image.decode_png(theme_rgb, channels=3)
     theme_rgb = tf.image.resize(theme_rgb, [1, 7])
     theme_rgb = tf.cast(theme_rgb, tf.float32) / 255.
 
     # color theme mask
-    # theme_mask = tf.io.read_file(filepath_queue[2])
-    # theme_mask = tf.image.decode_png(theme_mask, channels=1)
+    theme_mask = tf.io.read_file(filepath_queue[2])
+    theme_mask = tf.image.decode_png(theme_mask, channels=1)
     theme_mask = tf.image.resize(theme_mask, [1, 7])
     theme_mask = tf.cast(theme_mask, tf.float32) / 255.
     theme_mask = tf.reshape(theme_mask[:, :, 0], [1, 7, 1])
 
     # a K-color map by decoding the color image with its representative colors
-    # index_rgb = tf.io.read_file(filepath_queue[3])
-    # index_rgb = tf.image.decode_png(index_rgb, channels=3)
+    index_rgb = tf.io.read_file(filepath_queue[3])
+    index_rgb = tf.image.decode_png(index_rgb, channels=3)
     index_rgb = tf.image.resize(index_rgb, [img_size_h, img_size_w])
     index_rgb = tf.cast(index_rgb, tf.float32) / 255.
 
     # Local Points
-    point_rgb, point_mask = preprocess.local_gen(fn_wo_ext, num_points_pix=-1, set="train")  # -1: random number
+    # point_rgb, point_mask = preprocess.local_gen(fn_wo_ext, num_points_pix=-1, set="train")  # -1: random number
     # local rgb
-    # point_rgb = tf.io.read_file(filepath_queue[4])
-    # point_rgb = tf.image.decode_png(point_rgb, channels=3)
+    point_rgb = tf.io.read_file(filepath_queue[4])
+    point_rgb = tf.image.decode_png(point_rgb, channels=3)
     point_rgb = tf.image.resize(point_rgb, [img_size_h, img_size_w])
     point_rgb = tf.cast(point_rgb, tf.float32) / 255.
 
     # local mask
-    # point_mask = tf.io.read_file(filepath_queue[5])
-    # point_mask = tf.image.decode_png(point_mask, channels=1)
+    point_mask = tf.io.read_file(filepath_queue[5])
+    point_mask = tf.image.decode_png(point_mask, channels=1)
     point_mask = tf.image.resize(point_mask, [img_size_h, img_size_w])
     point_mask = tf.cast(point_mask, tf.float32) / 255.
     point_mask = tf.reshape(point_mask[:, :, 0], [img_size_h, img_size_w, 1])
@@ -154,7 +182,7 @@ def get_batch(train_list, image_size, batch_size, capacity, is_random=True, only
                 batch_size=batch_size,
                 capacity=capacity,
                 min_after_dequeue=500,
-                num_threads=4)
+                num_threads=16)
     else:
         if only_globals:
             point_rgb = point_rgb_blank
@@ -248,6 +276,24 @@ def lab_to_rgb(image_lab):
 
 def get_eval_img(img_path, theme_path, theme_mask_path, point_path, point_mask_path, img_size=(256, 256),
                  only_globals=False):
+    max_iter = 1_000
+    fn = None
+    i = 0
+    while True:
+        fn = random.choice(os.listdir(img_path))
+        i += 1
+        if i > max_iter:
+            print("(Probably) no images in val dir:", img_path)
+            exit()
+        if fn.lower().endswith((".png", ".jpg", ".jpeg", ".tiff")):
+            break
+
+    img_path = img_path + fn
+    theme_path = theme_path + fn
+    theme_mask_path = theme_mask_path + fn
+    point_path = point_path + fn
+    point_mask_path = point_mask_path + fn
+
     h, w = img_size
     image_rgb = tf.io.read_file(img_path)
     image_rgb = tf.image.decode_png(image_rgb, channels=3)

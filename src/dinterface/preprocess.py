@@ -4,6 +4,7 @@ Calling this file from commandline, preprocesses all images with default paramet
 
 import os, sys
 import cv2
+from PIL import Image
 import numpy as np
 import pathlib
 import hashlib
@@ -15,6 +16,7 @@ sys.path.insert(1, os.path.abspath(os.path.join(pathlib.Path(__file__).parent.re
 sys.path.insert(1, os.path.abspath(pathlib.Path(__file__).parent.resolve()))
 from dutils import add_color_pixels_rand_gt, imsegkmeans, arr2tf, get_fn_wo_ext
 from src.utils import files
+from src.dinterface.dutils import get_h_w
 
 dirs = files.config_parse(dirs=True)
 
@@ -55,17 +57,11 @@ def load_img(filepath, gray=False):
             os.remove(filepath)
             return None
 
-        rgb = False
-        if filepath.lower().endswith(('.jpg', '.jpeg')):
-            rgb = True
-        if not gray:
-            if not rgb:
-                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        else:
-            if not rgb:
-                img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            else:
-                img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+        rgb = True if Image.fromarray(img).mode == "RGB" else False
+        if not rgb:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        if gray:
+            img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
     else:
         # print("load_img; file not found:", filepath)
         pass
@@ -126,16 +122,6 @@ def local_gen(filename, num_points_pix=-1, set="train", overwrite=False):
     return points_rgb, points_mask
     # return arr2tf(points_rgb), arr2tf(points_mask)
 
-def get_h_w(img):
-    """
-    To handle gray and color images
-    """
-    h = w = 0
-    try:
-        h, w, _ = img.shape
-    except ValueError:
-        h, w = img.shape
-    return h, w
 
 def crop(img, random_crop=256, fn=""):
     """
@@ -161,11 +147,12 @@ def _gt_gen(img, filename, new_dir, random_crop=256, overwrite=False):
     if img is None:
         return None
     h, w = get_h_w(img)
-    if h <= random_crop or w <= random_crop:
+    if random_crop and (h <= random_crop or w <= random_crop):
         return None
     gt_path = new_dir + filename
     if overwrite or not os.path.isfile(gt_path):
-        img = crop(img, random_crop, filename)
+        if random_crop:
+            img = crop(img, random_crop, filename)
         cache_img(img, gt_path, overwrite)
         return img
 
@@ -174,6 +161,7 @@ def gt_gen_color(filename, set="train", random_crop=256, overwrite=False):
     TODO: add align? (rotate so that larger side always width)
     :param filename: original image path (with extension)
     """
+    # filename = os.path.basename(filename)
     orig_path = dirs[set] + dirs["original_img"] + filename
     img = load_img(orig_path)
     return _gt_gen(img, get_fn_wo_ext(filename), dirs[set]+dirs["ground_truth"], random_crop=random_crop, overwrite=overwrite)

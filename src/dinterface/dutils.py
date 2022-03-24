@@ -95,3 +95,14 @@ def get_fn_wo_ext(fn):
     if fn.lower().endswith(('.png', '.jpg', '.jpeg')):
         fn = os.path.splitext(fn)[0]
     return fn
+
+def get_h_w(img):
+    """
+    To handle gray and color images
+    """
+    h = w = 0
+    try:
+        h, w, _ = img.shape
+    except ValueError:
+        h, w = img.shape
+    return h, w

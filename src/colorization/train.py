@@ -20,28 +20,17 @@ dirs = files.config_parse(dirs=True)
 # TODO: remove. These are technically not needed any more, paths are directly set in preprocess from config
 _BASE_PATH = '/home/kiadmin/projects/Interactive-Deep-Colorization-and-Compression/'
 
-# _IMAGE_COLOR_DIR = _BASE_PATH + 'res/data/image_color_dir'
 _IMAGE_COLOR_DIR = dirs["train"] + dirs["ground_truth"]
-# _COLOR_MAP_DIR = _BASE_PATH + 'res/data/color_map_dir'
 _COLOR_MAP_DIR = dirs["train"] + dirs["color_map"]
-# _THEME_DIR = _BASE_PATH + 'res/data/theme_dir'
 _THEME_DIR = dirs["train"] + dirs["theme_rgb"]
-# _THEME_MASK_DIR = _BASE_PATH + 'res/data/theme_mask_dir'
 _THEME_MASK_DIR = dirs["train"] + dirs["theme_mask"]
-# _LOCAL_DIR = _BASE_PATH + 'res/data/local_dir'
 _LOCAL_DIR = dirs["train"] + dirs["local_hints"]
-# _LOCAL_MASK_DIR = _BASE_PATH + 'res/data/local_mask_dir'
 _LOCAL_MASK_DIR = dirs["train"] + dirs["local_mask"]
 
-# _EVAL_IMG_RGB = _BASE_PATH + 'res/eval/image_color_dir/img_rgb.png'
 _EVAL_IMG_RGB = dirs["val"] + dirs["ground_truth"]
-# _EVAL_THEME_RGB = _BASE_PATH + 'res/eval/theme_dir/img_rgb.png'
 _EVAL_THEME_RGB = dirs["val"] + dirs["theme_rgb"]
-# _EVAL_MASK = _BASE_PATH + 'res/eval/theme_mask_dir/img_rgb.png'
 _EVAL_MASK = dirs["val"] + dirs["theme_mask"]
-# _EVAL_POINTS_RGB = _BASE_PATH + 'res/eval/local_dir/img_rgb.png'
 _EVAL_POINTS_RGB = dirs["val"] + dirs["local_hints"]
-# _EVAL_POINTS_MASK = _BASE_PATH + 'res/eval/local_mask_dir/img_rgb.png'
 _EVAL_POINTS_MASK = dirs["val"] + dirs["local_mask"]
 
 # _LOGS_DIR = _BASE_PATH + '/res/logs/'

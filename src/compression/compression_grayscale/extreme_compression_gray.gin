@@ -13,12 +13,12 @@ setup_optimizer.use_feature_matching = False
 # Shared specs (G and D)
 shared_specs.epochs = 20
 shared_specs.batch_size = 32
-shared_specs.k_beta = 0.05                      # GAN loss scaler
-shared_specs.k_m = 0.5                          # MSE loss scaler (always 0.5)
-shared_specs.k_p = 0.5                          # LPIPS loss scaler (always 0.5)
+shared_specs.k_beta = 1                         # GAN loss scaler
+shared_specs.k_m = 10                           # MSE loss scaler (always 0.5)
+shared_specs.k_p = 10                           # LPIPS loss scaler (always 0.5)
 shared_specs.k_fm = 0.5                         # Feature Matching loss scaler
 shared_specs.channel_bottleneck = 8
-shared_specs.disc_scale = 3
+shared_specs.disc_scale = 1
 
 # I/O and data structure
 io.base_path = '/home/kiadmin/projects/Interactive-Deep-Colorization-and-Compression/'
@@ -33,6 +33,6 @@ io.lpips_weights = 'res/out/gen_compression_gray/model/lpips_weights'
 # Dataset (imagenet dataset)
 io.input_dim_raw = (256, 256, 1)
 io.input_dim_target = (256, 256, 1)
-io.buf_size = 2975
+io.buf_size = 90000
 io.data = '/imagenet-mini/' # probably not needed, preprocessing is done outside of the compression nets
 io.data_prep = 'res/'

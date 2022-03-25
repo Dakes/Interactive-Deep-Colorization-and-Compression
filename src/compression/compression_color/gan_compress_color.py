@@ -10,6 +10,7 @@ sys.path.insert(1, os.path.abspath(os.path.join(pathlib.Path(__file__).parent.re
 from src.compression.shared.data_utils import load_prepare_data_val, load_prepare_data_train, fit
 from src.compression.shared.net_architecture import make_enc, make_gen, make_gan, make_multi_scale_disc
 
+os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
 GIN_FIN = 'src/compression/compression_color/extreme_compression_color.gin'
 STRFTIME_FORMAT = "%Y%m%d-%H%M%S"

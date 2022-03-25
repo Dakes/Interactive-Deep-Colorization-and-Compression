@@ -11,8 +11,8 @@ setup_optimizer.use_lpips = True
 setup_optimizer.use_feature_matching = False
 
 # Shared specs (G and D)
-shared_specs.epochs = 3
-shared_specs.batch_size = 3
+shared_specs.epochs = 20
+shared_specs.batch_size = 32
 shared_specs.k_beta = 0.05                      # GAN loss scaler
 shared_specs.k_m = 0.5                          # MSE loss scaler (always 0.5)
 shared_specs.k_p = 0.5                          # LPIPS loss scaler (always 0.5)

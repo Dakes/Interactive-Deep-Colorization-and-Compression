@@ -202,7 +202,7 @@ class LPIPSLoss(object):
         if fake_image.shape[1] == 1:
             # broadcasting the grayscale image of dim (1, 1, 256, 256) to (1, 3, 256, 256) to use lpips on 3 identical
             # "color" channels
-            fake_image = tf.broadcast_to(fake_image,[1, 3, 256, 256])
-            real_image = tf.broadcast_to(real_image, [1, 3, 256, 256])
+            fake_image = tf.broadcast_to(fake_image,[32, 3, 256, 256])
+            real_image = tf.broadcast_to(real_image, [32, 3, 256, 256])
         loss = self._lpips_func(fake_image, real_image)
         return tf.reduce_mean(loss)  # Loss is N111, take mean to get scalar.

@@ -21,12 +21,13 @@ from src.dinterface.dutils import get_h_w
 dirs = files.config_parse(dirs=True)
 
 ORIG_EXT = ".JPEG"
+POSSIBLE_EXT = (".png", ".jpg", ".jpeg", ".tiff", ".JPEG")
 
 def cache_img(img, filepath, overwrite, png_compression=0):
     """
     Saves to disk, only if not already present
     """
-    if not filepath.lower().endswith(('.png', '.jpg', '.jpeg')):
+    if not filepath.lower().endswith(POSSIBLE_EXT):
         filepath = filepath + ".png"
     if not os.path.isdir(os.path.dirname(filepath)):
         print("Creating dir:", os.path.dirname(filepath))
@@ -49,7 +50,7 @@ def load_img(filepath, gray=False):
     :return: None if file not exists
     """
     img = None
-    if (os.path.isfile(filepath) or os.path.islink(filepath) ) and filepath.lower().endswith(('.jpg', '.jpeg', ".png", ".tiff")):
+    if (os.path.isfile(filepath) or os.path.islink(filepath) ) and filepath.lower().endswith(POSSIBLE_EXT):
         img = cv2.imread(filepath)
         # if None: broken file (0B). Delete, return.
         if img is None:
@@ -184,7 +185,7 @@ def preprocess_grayscale(random_crop=256, set="train", overwrite=False):
     orig_img_list = []
     for dirpath, dnames, fnames in os.walk(dirs[set] + dirs["original_img"]):
         for file in fnames:
-            if file.lower().endswith(('.png', '.jpg', '.jpeg')):
+            if file.lower().endswith(POSSIBLE_EXT):
                 orig_img_list.append(file)
 
     starmap_input = zip(orig_img_list, rep(set), rep(random_crop), rep(overwrite))
@@ -195,13 +196,14 @@ def preprocess_grayscale(random_crop=256, set="train", overwrite=False):
 
 def preprocess_color_once(file, num_points_pix, num_points_theme, random_crop, set,
                           ground_truth, locals, theme, segmented, overwrite):
+    print("==========================", file)
+    file.lower().endswith(POSSIBLE_EXT)
     fn_wo_ext = get_fn_wo_ext(file)
     if ground_truth:
         img = gt_gen_color(file, set, random_crop, overwrite)
         # if img < random crop (None), skip
         if img is None:
             return
-
     if locals:
         local_gen(fn_wo_ext, num_points_pix, set, overwrite)
     if theme:
@@ -229,9 +231,12 @@ def preprocess_color(num_points_pix, num_points_theme, random_crop=256, set="tra
     cpus = int(os.cpu_count() - (os.cpu_count()/100*1))  # leave 1% of CPU for other tasks ᕙ(⇀‸↼‶)ᕗ
     os.nice(10)
     orig_img_list = []
-    for dirpath, dnames, fnames in os.walk(dirs[set] + dirs["original_img"]):
+    # if ground truth should not be generated, it is assumed, ground_truth exists, but not original_img
+    src_set = "original_img" if ground_truth else "ground_truth"
+    print(dirs[set] + dirs[src_set])
+    for dirpath, dnames, fnames in os.walk(dirs[set] + dirs[src_set]):
         for file in fnames:
-            if file.lower().endswith(('.png', '.jpg', '.jpeg')):
+            if file.lower().endswith(POSSIBLE_EXT):
                 orig_img_list.append(file)
 
 
@@ -267,7 +272,7 @@ def dataset_prepare(set="train", max_img=None):
     counter = 0
     for dirpath, _, fnames in os.walk(dirs["dataset"]+set):
         for file in fnames:
-            if file.lower().endswith(('.png', '.jpg', '.jpeg', '.tiff')):
+            if file.lower().endswith(POSSIBLE_EXT):
                 if max_img is not None and counter >= max_img:
                     break
                 counter += 1

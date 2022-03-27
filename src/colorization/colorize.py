@@ -50,21 +50,23 @@ class Colorizer(object):
         self.compress = self.args.compress
 
 
-    def color_cue_gen(self, rgb_fp=False, overwrite=False):
+    def color_cue_gen(self, rgb_fp=False, gt_gen=True, overwrite=False):
         """
         Generate color cues.
         :param rgb_fp: Path to one image file, or false, to process whole folder (res/img/test/original_img/)
+        :param gt_gen: False: gt given in right folder, instead of original. skip gt_gen.
         """
         if rgb_fp:
             rgb_fp = os.path.basename(rgb_fp)
-            preprocess.gt_gen_color(rgb_fp, set="test_img", random_crop=False, overwrite=overwrite)
+            if gt_gen:
+                preprocess.gt_gen_color(rgb_fp, set="test_img", random_crop=False, overwrite=overwrite)
             preprocess.local_gen(rgb_fp, num_points_pix=self.num_points_pix, set="test_img", overwrite=overwrite)
             preprocess.theme_gen(rgb_fp, set="test_img", num_points_theme=self.num_points_theme,
                                  save_segmented=self.save_segmented, overwrite=overwrite)
         else:
             preprocess.preprocess_color(num_points_pix=self.num_points_pix, num_points_theme=self.num_points_theme,
                                         random_crop=self.rancom_crop, set="test_img",
-                                        ground_truth=True, locals=True, theme=True, segmented=True, overwrite=overwrite)
+                                        ground_truth=gt_gen, locals=True, theme=True, segmented=True, overwrite=overwrite)
 
 
     def recolorize(self, fp=None, shape=(256, 256)):
@@ -89,11 +91,7 @@ class Colorizer(object):
 
         # because of migration from tf 1.x -> 2.x
         tf.compat.v1.disable_eager_execution()
-        # tf.config.threading.set_intra_op_parallelism_threads(48)
-        # tf.config.threading.set_inter_op_parallelism_threads(48)
-        sess = tf.compat.v1.Session()#config=
-                                    #tf.compat.v1.ConfigProto(inter_op_parallelism_threads=48,
-                                    #intra_op_parallelism_threads=48))
+        sess = tf.compat.v1.Session()
         train_list = input_data.get_train_list(
             [
                 self.dirs["test_img"]+self.dirs["ground_truth"],
@@ -177,28 +175,25 @@ class Colorizer(object):
         """
         :param shape: if None, /try/ to use original shape. Else reshape to this
         """
-        import time
         gt_path = self.dirs["test_img"] + self.dirs["ground_truth"]
         directory = os.fsencode(gt_path)
         for file in os.listdir(directory):
             filename = os.fsdecode(file)
-            print(filename)
             if filename.endswith(self.ext):
                 try:
                     self.recolorize(fp=filename, shape=shape)
-                    # takes ~~30 sec to finish one. quick and dirty fix. Otherwise would run out of memory.
-                    # time.sleep(30)
                 except ValueError as err:
                     print(err)
+
 
 if __name__ == "__main__":
     # os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
     # os.environ["CUDA_VISIBLE_DEVICES"]="-1"
-    os.environ["CUDA_VISIBLE_DEVICES"]="1"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
     c = Colorizer(num_points=6, num_points_pix=100, random_crop=256)
     # c.main()
-    c.color_cue_gen(overwrite=True)
+    c.color_cue_gen(overwrite=False, gt_gen=False)
     c.recolorize_all(shape=None)
     # c.recolorize("res/img/test/original_img/20191207_115205.jpg")
 

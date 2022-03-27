@@ -1,3 +1,6 @@
+res/
+*.out
+
 .DS_Store
 .idea
 *.log

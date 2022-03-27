@@ -34,7 +34,7 @@ _EVAL_POINTS_RGB = dirs["val"] + dirs["local_hints"]
 _EVAL_POINTS_MASK = dirs["val"] + dirs["local_mask"]
 
 # _LOGS_DIR = _BASE_PATH + '/res/logs/'
-_LOGS_DIR = dirs["logs"]
+_LOGS_DIR = dirs["colorization_train"]
 _EXT_LIST = ['png', 'png', 'png', 'png', 'png', 'png']
 _NAME_LIST = ['gt img', 'theme img', 'theme mask', 'color_map img', 'local img', 'local mask']
 
@@ -56,8 +56,8 @@ def train1():
     logs_dir = _LOGS_DIR + 'run_1/'
     train_logger = Logger()
     test_logger = Logger()
-    # fw = tf.compat.v1.summary.FileWriter(logs_dir, graph=sess.graph)
-    fw = tf.summary.create_file_writer(logs_dir)
+    fw = tf.compat.v1.summary.FileWriter(logs_dir, graph=sess.graph)
+    # fw = tf.summary.create_file_writer(logs_dir)
 
     # get the training data
     train_list = input_data.get_train_list(
@@ -184,7 +184,9 @@ def train2():
     logs_dir = _LOGS_DIR + 'run_2/'
     train_logger = Logger()
     test_logger = Logger()
+    # fw = tf.compat.v1.summary.FileWriter(logs_dir, graph=sess.graph)
     fw = tf.compat.v1.summary.FileWriter(logs_dir, graph=sess.graph)
+    # fw = tf.summary.create_file_writer(logs_dir)
 
     # get the training data
     train_list = input_data.get_train_list(
@@ -480,6 +482,9 @@ def train3():
 
 
 if __name__ == '__main__':
-    train1()
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    tf.compat.v1.disable_eager_execution()
+    # train1()
     # train2()
-    # train3()
+    train3()
+

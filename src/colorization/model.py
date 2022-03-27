@@ -24,10 +24,10 @@ def sobel2(image_batch):
 
 
 def get_sobel_batch(image_batch):
-    assert image_batch.shape[-1].value == 2
-    batch_size = image_batch.shape[0].value
-    height = image_batch.shape[1].value
-    width = image_batch.shape[2].value
+    assert image_batch.shape[-1] == 2
+    batch_size = image_batch.shape[0]
+    height = image_batch.shape[1]
+    width = image_batch.shape[2]
 
     batch1 = image_batch[:, :, :, 0]
     batch2 = image_batch[:, :, :, 1]

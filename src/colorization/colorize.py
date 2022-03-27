@@ -89,7 +89,11 @@ class Colorizer(object):
 
         # because of migration from tf 1.x -> 2.x
         tf.compat.v1.disable_eager_execution()
-        sess = tf.compat.v1.Session()
+        # tf.config.threading.set_intra_op_parallelism_threads(48)
+        # tf.config.threading.set_inter_op_parallelism_threads(48)
+        sess = tf.compat.v1.Session()#config=
+                                    #tf.compat.v1.ConfigProto(inter_op_parallelism_threads=48,
+                                    #intra_op_parallelism_threads=48))
         train_list = input_data.get_train_list(
             [
                 self.dirs["test_img"]+self.dirs["ground_truth"],
@@ -173,6 +177,7 @@ class Colorizer(object):
         """
         :param shape: if None, /try/ to use original shape. Else reshape to this
         """
+        import time
         gt_path = self.dirs["test_img"] + self.dirs["ground_truth"]
         directory = os.fsencode(gt_path)
         for file in os.listdir(directory):
@@ -181,13 +186,19 @@ class Colorizer(object):
             if filename.endswith(self.ext):
                 try:
                     self.recolorize(fp=filename, shape=shape)
+                    # takes ~~30 sec to finish one. quick and dirty fix. Otherwise would run out of memory.
+                    # time.sleep(30)
                 except ValueError as err:
                     print(err)
 
 if __name__ == "__main__":
-    c = Colorizer(num_points=6, num_points_pix=1000, random_crop=False)
+    # os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+    # os.environ["CUDA_VISIBLE_DEVICES"]="-1"
+    os.environ["CUDA_VISIBLE_DEVICES"]="1"
+
+    c = Colorizer(num_points=6, num_points_pix=100, random_crop=256)
     # c.main()
-    c.color_cue_gen()
+    c.color_cue_gen(overwrite=True)
     c.recolorize_all(shape=None)
     # c.recolorize("res/img/test/original_img/20191207_115205.jpg")
 

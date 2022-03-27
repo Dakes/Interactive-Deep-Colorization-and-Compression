@@ -100,7 +100,6 @@ def get_train_list(dir_list, name_list, ext_list, shuffle=True, single_img_name=
 # both
 def get_batch(train_list, image_size, batch_size, capacity, is_random=True, only_globals=False):
     tf.compat.v1.disable_eager_execution()
-    print("train_list: ", train_list)
 
     filepath_queue = tf.compat.v1.train.slice_input_producer(train_list, shuffle=False)
     # filepath_queue = tf.data.Dataset.from_tensor_slices(tuple(train_list))

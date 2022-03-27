@@ -9,7 +9,7 @@ _MAX_POINTS_THEME = 7
 # _MIN_POINTS_PIX = 10
 # _MAX_POINTS_PIX = 50
 _MIN_POINTS_PIX = 10
-_MAX_POINTS_PIX = 2000  # h*w*0.03
+_MAX_POINTS_PIX = 100  # h*w*0.03
 
 # TODO: add "clever" point selection (mainly for compression)
 

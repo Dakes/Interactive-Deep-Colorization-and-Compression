@@ -79,7 +79,8 @@ class Colorizer(object):
                                     random_crop=self.rancom_crop, set="test_img",
                                     ground_truth=False, locals=True, theme=False, segmented=False,
                                     overwrite=True)
-        self.recolorize_all(shape=None)
+        # self.recolorize_all(shape=None)
+        self.recolorize()
 
         rec_path = self.dirs["final"] + self.dirs["recolorized"]
         directory = os.fsencode(rec_path)
@@ -103,7 +104,7 @@ class Colorizer(object):
                 preprocess.cache_img(points_mask, dirs["test_img"] + dirs["local_mask"] + filename, overwrite=True)
 
 
-    def recolorize(self, fp=None, shape=(256, 256)):
+    def recolorize(self, fp="", shape=(256, 256)):
         """
         :param fp: path/name of image to recolorize. If None processes whole folder. (Requires shape then)
         :param shape: shape to resize to. None: use image size
@@ -192,7 +193,7 @@ class Colorizer(object):
                 psnr = peak_signal_noise_ratio(out_rgb2, in_rgb)
                 avg_psnr += psnr
                 plt.imsave(save_path + '/' + train_list[0][t].split('/')[-1], out_rgb2)
-                print('%s\n' % str(psnr))
+                # print('%s' % str(psnr))
 
             print('avg_psnr = %s' % str(avg_psnr / len(train_list[0])))
 
@@ -205,6 +206,7 @@ class Colorizer(object):
         coord.join(threads=threads)
         sess.close()
 
+    # LEGACY garbage, recolorize already does that, ups
     def recolorize_all(self, shape=(256, 256), method="nodist"):
         """
         :param shape: if None, /try/ to use original shape. Else reshape to this
@@ -225,12 +227,13 @@ class Colorizer(object):
 if __name__ == "__main__":
     # os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
     # os.environ["CUDA_VISIBLE_DEVICES"]="-1"
-    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
     c = Colorizer(num_points=6, num_points_pix=100, random_crop=256)
     # c.main()
     c.color_cue_gen(overwrite=False, gt_gen=False)
     c.smart_point_choice(method="nodist")
-    c.recolorize_all(shape=None)
+    c.recolorize()
+    # c.recolorize_all(shape=None)
     # c.recolorize("res/img/test/original_img/20191207_115205.jpg")
 

@@ -131,7 +131,7 @@ def get_points_nodist(rgb_img, theme_img, points=100, radius=10, scale=3.5, plot
     Choose points by subtracting normal distribution from areas with highest error and choose points there.
     TODO: implement second pass (maybe not here, but in colorize?)
     """
-    em = get_error_map(rgb_img, theme_img)
+    em = get_error_map(rgb_img, theme_img, one_channel=True)
     h, w, c = rgb_img.shape
     points_mask = np.zeros([h, w], dtype=np.uint8)
     points_rgb = np.zeros([h, w, c], dtype=np.uint8)

@@ -1,9 +1,12 @@
 import os
 import cv2
 import numpy as np
+import skimage
 import tensorflow as tf
 
 # TODO move to config?
+from matplotlib import pyplot as plt
+
 _MIN_POINTS_THEME = 3
 _MAX_POINTS_THEME = 7
 # _MIN_POINTS_PIX = 10
@@ -11,9 +14,7 @@ _MAX_POINTS_THEME = 7
 _MIN_POINTS_PIX = 10
 _MAX_POINTS_PIX = 100  # h*w*0.03
 
-# TODO: add "clever" point selection (mainly for compression)
-
-
+"""
 def add_color_pixels_rand_gt(img, num_points):
     h, w, c = img.shape
     points_mask = np.zeros([h, w], dtype=np.uint8)
@@ -45,6 +46,35 @@ def add_color_pixels_gt(img, list_regions):
         points_rgb[y, x] = img[y, x]
 
     return points_mask, points_rgb
+"""
+
+def rgb_to_lab(rgb):
+    img_lab = skimage.color.rgb2lab(rgb)
+    img_lab = img_lab.astype(int)
+    return img_lab
+
+def lab_to_ab(lab, ab_separate=False):
+    lab = lab.transpose((2, 0, 1)) + 100
+    ab = lab[1:3]
+    if not ab_separate:
+        ab = ab.transpose((1, 2, 0))
+    return ab
+
+def rgb_to_ab(rgb, ab_separate=False):
+    return lab_to_ab(rgb_to_lab(rgb), ab_separate=ab_separate)
+
+
+def get_error_map(orig_img, out_img, rgb=True, one_channel=False):
+    if rgb:
+        orig_img = rgb_to_ab(orig_img)
+        out_img = rgb_to_ab(out_img)
+    error_map = np.expand_dims(np.mean(abs(orig_img - out_img), axis=-1), axis=-1).astype(int)
+    rescaled_error_map = error_map / (np.amax(error_map, axis=(0, 1)))
+    if not one_channel:
+        rescaled_error_map = cv2.merge((rescaled_error_map, rescaled_error_map, rescaled_error_map))
+    else:
+        rescaled_error_map = rescaled_error_map.transpose(2, 0, 1)[0]
+    return rescaled_error_map
 
 
 def imsegkmeans(rgb_img, num_points):
@@ -106,3 +136,27 @@ def get_h_w(img):
     except ValueError:
         h, w = img.shape
     return h, w
+
+
+def plot_img(img, cmap=None):
+    """
+    plots an image at its own resolution
+    TODO: Add ability to save plot
+    """
+    dpi = 80
+    try:
+        height, width, depth = img.shape
+    except ValueError:
+        height, width = img.shape
+
+    # What size does the figure need to be in inches to fit the image?
+    figsize = width / float(dpi), height / float(dpi)
+
+    # Create a figure of the right size with one axes that takes up the full figure
+    fig = plt.figure(figsize=figsize)
+    ax = fig.add_axes([0, 0, 1, 1])
+
+    ax.axis('off')
+    ax.imshow(img, cmap=cmap)
+    plt.show()
+

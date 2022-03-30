@@ -3,7 +3,8 @@ import time
 import os
 import tensorflow as tf
 import matplotlib.pyplot as plt
-
+import scipy.misc
+import numpy as np
 from src.compression.shared.net_architecture import quantizer_theis
 from src.compression.shared.net_loss import gen_loss, disc_loss
 
@@ -85,6 +86,62 @@ def load_prepare_data_train(input_dir, batch_size, buf_size, gray=False):
 
     return train_dataset
 
+
+def generate_test_image(encoder, decoder, example_input, out_fn, gray=False):
+    input = load_norm_image(example_input)
+    shapes = input.shape
+
+    input_4d = np.asarray(input).reshape((1, shapes[0], shapes[1], shapes[2]))
+
+    w = encoder(input_4d, training=False)
+    z = quantizer_theis(w)
+    x_hat = decoder(z, training=False)
+
+    out = x_hat[0]
+
+    if gray:
+        plt.imsave(out_fn, out[:,:,0] * 0.5 + 0.5, cmap='gray')
+    else:
+        plt.imsave(out_fn, (out[:,:,:3] * 0.5 + 0.5).numpy())
+
+    """
+    plt.figure(figsize=(15, 15))
+    plt.imshow(x_hat[0] * 0.5 + 0.5)
+    plt.savefig(out_fn)
+    """
+
+
+"""
+def generate_test_image(encoder, decoder, example_input, out_fn, gray=False):
+    w = encoder(example_input, training=False)
+    z = quantizer_theis(w)
+    x_hat = decoder(z, training=False)
+
+    plt.figure(figsize=(15, 15))
+
+    display_list = [example_input[0], x_hat[0]]
+    title = ['Input Image', 'Predicted Image']
+
+    for i in range(2):
+        plt.subplot(1, 2, i + 1)
+        plt.title(title[i])
+        if gray:
+            plt.imshow(display_list[i] * 0.5 + 0.5, cmap='gray')
+        else:
+            plt.imshow(display_list[i] * 0.5 + 0.5)
+        plt.axis('off')
+    plt.savefig(out_fn)
+"""
+
+"""
+def load_prepare_data_test(input_dir):
+
+    val_dataset = tf.data.Dataset.list_files(input_dir + '*.png')
+    val_dataset = val_dataset.map(lambda x: load_norm_image(x), num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    val_dataset = val_dataset.batch(1)
+
+    return val_dataset
+"""
 """
 def load_norm_image(image_file, input_dim_target, mode='train'):
     input_image_fn = tf.io.read_file(image_file)

@@ -28,6 +28,7 @@ io.tb_dir = 'res/out/gen_compression_gray/tensorboard/'
 io.model_dir = 'res/out/gen_compression_gray/model/'
 io.log_dir = 'res/out/gen_compression_gray/log_dir/'
 io.lpips_weights = 'res/out/gen_compression_gray/model/lpips_weights'
+io.test_out = '/res/out/test_gray'
 
 # ============================================================
 # Dataset (imagenet dataset)
@@ -35,4 +36,4 @@ io.input_dim_raw = (256, 256, 1)
 io.input_dim_target = (256, 256, 1)
 io.buf_size = 90000
 io.data = '/imagenet-mini/' # probably not needed, preprocessing is done outside of the compression nets
-io.data_prep = 'res/'
+io.data_test = 'res/test/ground_truth_gray'

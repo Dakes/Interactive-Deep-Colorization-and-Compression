@@ -96,20 +96,32 @@ def generate_test_image(encoder, decoder, example_input, out_fn, gray=False):
     w = encoder(input_4d, training=False)
     z = quantizer_theis(w)
     x_hat = decoder(z, training=False)
+    print("#############")
+    print(x_hat.shape)
 
     out = x_hat[0]
+
 
     if gray:
         plt.imsave(out_fn, out[:,:,0] * 0.5 + 0.5, cmap='gray')
     else:
-        plt.imsave(out_fn, (out[:,:,:3] * 0.5 + 0.5).numpy())
+        plt.figure(figsize=(15, 15))
 
-    """
+        display_list = [input, x_hat[0]]
+        title = ['Input Image', 'Predicted Image']
+
+        for i in range(2):
+            plt.subplot(1, 2, i + 1)
+            plt.title(title[i])
+            plt.imshow(display_list[i] * 0.5 + 0.5)
+            plt.axis('off')
+        plt.savefig(out_fn)
+
+"""
     plt.figure(figsize=(15, 15))
     plt.imshow(x_hat[0] * 0.5 + 0.5)
     plt.savefig(out_fn)
     """
-
 
 """
 def generate_test_image(encoder, decoder, example_input, out_fn, gray=False):
@@ -132,16 +144,14 @@ def generate_test_image(encoder, decoder, example_input, out_fn, gray=False):
         plt.axis('off')
     plt.savefig(out_fn)
 """
-
-"""
 def load_prepare_data_test(input_dir):
 
-    val_dataset = tf.data.Dataset.list_files(input_dir + '*.png')
+    val_dataset = tf.data.Dataset.list_files(input_dir + '/*.png')
     val_dataset = val_dataset.map(lambda x: load_norm_image(x), num_parallel_calls=tf.data.experimental.AUTOTUNE)
     val_dataset = val_dataset.batch(1)
 
     return val_dataset
-"""
+
 """
 def load_norm_image(image_file, input_dim_target, mode='train'):
     input_image_fn = tf.io.read_file(image_file)

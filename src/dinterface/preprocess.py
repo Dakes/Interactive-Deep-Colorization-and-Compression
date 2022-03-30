@@ -14,7 +14,8 @@ import tqdm
 
 sys.path.insert(1, os.path.abspath(os.path.join(pathlib.Path(__file__).parent.resolve(), '../..')))
 sys.path.insert(1, os.path.abspath(pathlib.Path(__file__).parent.resolve()))
-from dutils import add_color_pixels_rand_gt, imsegkmeans, arr2tf, get_fn_wo_ext
+from dutils import imsegkmeans, arr2tf, get_fn_wo_ext
+from local_points import add_color_pixels_rand_gt
 from src.utils import files
 from src.dinterface.dutils import get_h_w
 

@@ -96,8 +96,6 @@ def generate_test_image(encoder, decoder, example_input, out_fn, gray=False):
     w = encoder(input_4d, training=False)
     z = quantizer_theis(w)
     x_hat = decoder(z, training=False)
-    print("#############")
-    print(x_hat.shape)
 
     out = x_hat[0]
 

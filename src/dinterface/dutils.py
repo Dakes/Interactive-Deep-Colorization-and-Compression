@@ -2,10 +2,14 @@ import os
 import cv2
 import numpy as np
 import skimage
+from PIL import Image
 import tensorflow as tf
 
 # TODO move to config?
 from matplotlib import pyplot as plt
+
+ORIG_EXT = ".JPEG"
+POSSIBLE_EXT = (".png", ".jpg", ".jpeg", ".tiff", ".JPEG")
 
 _MIN_POINTS_THEME = 3
 _MAX_POINTS_THEME = 7
@@ -47,6 +51,29 @@ def add_color_pixels_gt(img, list_regions):
 
     return points_mask, points_rgb
 """
+
+def load_img(filepath, gray=False):
+    """
+    :return: None if file not exists
+    """
+    img = None
+    if (os.path.isfile(filepath) or os.path.islink(filepath) ) and filepath.lower().endswith(POSSIBLE_EXT):
+        img = cv2.imread(filepath)
+        # if None: broken file (0B). Delete, return.
+        if img is None:
+            print("Broken file detected. Deleting:", filepath)
+            os.remove(filepath)
+            return None
+
+        rgb = True if Image.fromarray(img).mode == "RGB" else False
+        if not rgb:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        if gray:
+            img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    else:
+        # print("load_img; file not found:", filepath)
+        pass
+    return img
 
 def rgb_to_lab(rgb):
     img_lab = skimage.color.rgb2lab(rgb)

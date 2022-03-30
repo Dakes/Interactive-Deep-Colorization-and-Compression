@@ -86,7 +86,7 @@ def get_points_felzenszwalb(orig_img, theme_img, points=100, plot=False):
 
 
 # Normal Distribution subtraction method
-def extend_dist(y):
+def _extend_dist(y):
     """
     scale normal distribution to have one as the highest value.
     """
@@ -97,22 +97,22 @@ def extend_dist(y):
 
 
 @lru_cache()
-def get_em_subtrahend(radius=3, scale=3.5):
+def _get_em_subtrahend(radius=10, scale=3.5):
     x = np.arange(-radius, radius, 1)
     y = norm.pdf(x, 0, scale)
-    y = extend_dist(y)
+    y = _extend_dist(y)
     y2 = np.outer(y, y)
     return y2
 
 
-def subtract_from_em(em, y, x, radius=10, scale=3.5):
+def _subtract_from_em(em, y, x, radius=10, scale=3.5):
     """
     :param em: error map. as float 0-1.0 of shape (height, width)
     :param y, x: coordinate, where to subtract from error map
     :param radius: radius of normal distribution to subtract
     :param scale: Scale, how far distribution should spread out.
     """
-    sub = get_em_subtrahend(radius=radius, scale=scale)
+    sub = _get_em_subtrahend(radius=radius, scale=scale)
     h, w = em.shape
     for yi in range(-radius, radius):
         for xi in range(-radius, radius):
@@ -126,11 +126,12 @@ def subtract_from_em(em, y, x, radius=10, scale=3.5):
     return em
 
 
-def get_points_nodist(rgb_img, em, points=100, radius=10, scale=3.5, plot=False):
+def get_points_nodist(rgb_img, theme_img, points=100, radius=10, scale=3.5, plot=False):
     """
     Choose points by subtracting normal distribution from areas with highest error and choose points there.
     TODO: implement second pass (maybe not here, but in colorize?)
     """
+    em = get_error_map(rgb_img, theme_img)
     h, w, c = rgb_img.shape
     points_mask = np.zeros([h, w], dtype=np.uint8)
     points_rgb = np.zeros([h, w, c], dtype=np.uint8)
@@ -139,7 +140,7 @@ def get_points_nodist(rgb_img, em, points=100, radius=10, scale=3.5, plot=False)
         y, x = np.unravel_index(em.argmax(), em.shape)
         points_mask[y, x] = 255
         points_rgb[y, x] = rgb_img[y, x]
-        em = subtract_from_em(em, y, x, radius=radius, scale=scale)
+        em = _subtract_from_em(em, y, x, radius=radius, scale=scale)
 
     if plot:
         plot_img(em, cmap="gray")

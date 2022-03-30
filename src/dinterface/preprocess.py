@@ -4,7 +4,6 @@ Calling this file from commandline, preprocesses all images with default paramet
 
 import os, sys
 import cv2
-from PIL import Image
 import numpy as np
 import pathlib
 import hashlib
@@ -17,12 +16,10 @@ sys.path.insert(1, os.path.abspath(pathlib.Path(__file__).parent.resolve()))
 from dutils import imsegkmeans, arr2tf, get_fn_wo_ext
 from local_points import add_color_pixels_rand_gt
 from src.utils import files
-from src.dinterface.dutils import get_h_w
+from src.dinterface.dutils import get_h_w, load_img, ORIG_EXT, POSSIBLE_EXT
 
 dirs = files.config_parse(dirs=True)
 
-ORIG_EXT = ".JPEG"
-POSSIBLE_EXT = (".png", ".jpg", ".jpeg", ".tiff", ".JPEG")
 
 def cache_img(img, filepath, overwrite, png_compression=0):
     """
@@ -45,29 +42,6 @@ def cache_img(img, filepath, overwrite, png_compression=0):
     else:
         pass
 
-
-def load_img(filepath, gray=False):
-    """
-    :return: None if file not exists
-    """
-    img = None
-    if (os.path.isfile(filepath) or os.path.islink(filepath) ) and filepath.lower().endswith(POSSIBLE_EXT):
-        img = cv2.imread(filepath)
-        # if None: broken file (0B). Delete, return.
-        if img is None:
-            print("Broken file detected. Deleting:", filepath)
-            os.remove(filepath)
-            return None
-
-        rgb = True if Image.fromarray(img).mode == "RGB" else False
-        if not rgb:
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        if gray:
-            img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-    else:
-        # print("load_img; file not found:", filepath)
-        pass
-    return img
 
 def theme_gen(filename, set="train", num_points_theme=6, save_segmented=False, overwrite=False):
     """

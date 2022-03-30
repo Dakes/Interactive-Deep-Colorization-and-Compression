@@ -20,6 +20,9 @@ import src.dinterface.dutils as dutils
 import src.dinterface.preprocess as preprocess
 import src.utils.files as files
 from src.colorization import input_data, model
+from src.dinterface import local_points
+
+dirs = files.config_parse(dirs=True)
 
 
 class Colorizer(object):
@@ -29,6 +32,7 @@ class Colorizer(object):
         self.rancom_crop = random_crop
         self.dirs = files.config_parse(dirs=True)
         self.ext = ".png"
+        self.shape = (256, 256)
         # lower CPU priority (to not freeze PC), unix only
         os.nice(10)
 
@@ -67,6 +71,36 @@ class Colorizer(object):
             preprocess.preprocess_color(num_points_pix=self.num_points_pix, num_points_theme=self.num_points_theme,
                                         random_crop=self.rancom_crop, set="test_img",
                                         ground_truth=gt_gen, locals=True, theme=True, segmented=True, overwrite=overwrite)
+
+
+    def smart_point_choice(self, method="nodist"):
+        # reset local cues, to make a global only colorization, to create error map
+        preprocess.preprocess_color(num_points_pix=0, num_points_theme=self.num_points_theme,
+                                    random_crop=self.rancom_crop, set="test_img",
+                                    ground_truth=False, locals=True, theme=False, segmented=False,
+                                    overwrite=True)
+        self.recolorize_all(shape=None)
+
+        rec_path = self.dirs["final"] + self.dirs["recolorized"]
+        directory = os.fsencode(rec_path)
+        for file in os.listdir(directory):
+            filename = os.fsdecode(file)
+            if filename.endswith(self.ext):
+                gt = dutils.load_img(self.dirs["test_img"]+self.dirs["ground_truth"] + filename)
+                theme_rec = dutils.load_img(self.dirs["final"] + self.dirs["recolorized"] + filename)
+                # generate & save new points
+                points_rgb, points_mask = None, None
+                if method == "nodist":
+                    points_rgb, points_mask = local_points.get_points_nodist(gt, theme_rec)
+                elif method == "slic":
+                    points_rgb, points_mask = local_points.get_points_slic(gt, theme_rec, points=100, plot=False)
+                elif method == "felzenszwalb":
+                    points_rgb, points_mask = local_points.get_points_felzenszwalb(gt, theme_rec, points=100, plot=False)
+                else:
+                    print("Error method", method, "not valid. Exiting. ")
+                    exit()
+                preprocess.cache_img(points_rgb, dirs["test_img"] + dirs["local_hints"] + filename, overwrite=True)
+                preprocess.cache_img(points_mask, dirs["test_img"] + dirs["local_mask"] + filename, overwrite=True)
 
 
     def recolorize(self, fp=None, shape=(256, 256)):
@@ -171,9 +205,11 @@ class Colorizer(object):
         coord.join(threads=threads)
         sess.close()
 
-    def recolorize_all(self, shape=(256, 256)):
+    def recolorize_all(self, shape=(256, 256), method="nodist"):
         """
         :param shape: if None, /try/ to use original shape. Else reshape to this
+        :param method: method for smart point choice. Will do (at least) one recolorization, to choose better points.
+        "nodist", "slic" or "felzenszwalb". If None uses random points.
         """
         gt_path = self.dirs["test_img"] + self.dirs["ground_truth"]
         directory = os.fsencode(gt_path)
@@ -194,6 +230,7 @@ if __name__ == "__main__":
     c = Colorizer(num_points=6, num_points_pix=100, random_crop=256)
     # c.main()
     c.color_cue_gen(overwrite=False, gt_gen=False)
+    c.smart_point_choice(method="nodist")
     c.recolorize_all(shape=None)
     # c.recolorize("res/img/test/original_img/20191207_115205.jpg")
 

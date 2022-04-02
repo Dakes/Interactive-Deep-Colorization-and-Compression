@@ -92,11 +92,11 @@ class Colorizer(object):
                 # generate & save new points
                 points_rgb, points_mask = None, None
                 if method == "nodist":
-                    points_rgb, points_mask = local_points.get_points_nodist(gt, theme_rec)
+                    points_rgb, points_mask = local_points.get_points_nodist(gt, theme_rec, points=self.num_points_pix)
                 elif method == "slic":
-                    points_rgb, points_mask = local_points.get_points_slic(gt, theme_rec, points=100, plot=False)
+                    points_rgb, points_mask = local_points.get_points_slic(gt, theme_rec, points=self.num_points_pix)
                 elif method == "felzenszwalb":
-                    points_rgb, points_mask = local_points.get_points_felzenszwalb(gt, theme_rec, points=100, plot=False)
+                    points_rgb, points_mask = local_points.get_points_felzenszwalb(gt, theme_rec, points=self.num_points_pix)
                 else:
                     print("Error method", method, "not valid. Exiting. ")
                     exit()

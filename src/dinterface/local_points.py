@@ -53,7 +53,7 @@ def _segments_to_points(segmented, rgb_img, error_map, max_num_points=100):
         points_rgb[y, x] = rgb_img[y, x]
         i += 1
         if i >= max_num_points:
-            print("Skipping", len(regions) - max_num_points, "region(s)")
+            # print("Skipping", len(regions) - max_num_points, "region(s)")
             break
 
     return points_rgb, points_mask
@@ -63,7 +63,17 @@ def get_points_slic(orig_img, theme_img, points=100, plot=False):
     error_map = get_error_map(orig_img, theme_img)
 
     # n_segments is the maximum number (But it almost never reaches that)
-    segments_slic = slic(error_map, compactness=0.15, sigma=0, n_segments=int(points * 2), convert2lab=False)
+    for i in range(100):
+        try:
+            segments_slic = slic(error_map, compactness=0.2, sigma=1, n_segments=points, enforce_connectivity=False, convert2lab=False)
+            break
+        # happens if points are 0
+        except ZeroDivisionError:
+            points = points + 1
+            print("SLIC: ZeroDivisionError. Modifying values. New Number of Points:", points)
+            if i >= 100:
+                exit()
+
     if plot:
         print(len(np.unique(segments_slic)), "segments")
         plt.imshow(mark_boundaries(error_map, segments_slic))

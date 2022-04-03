@@ -3,7 +3,6 @@ import time
 import os
 import tensorflow as tf
 import matplotlib.pyplot as plt
-import scipy.misc
 import numpy as np
 from src.compression.shared.net_architecture import quantizer_theis
 from src.compression.shared.net_loss import gen_loss, disc_loss
@@ -103,23 +102,8 @@ def generate_test_image(encoder, decoder, example_input, out_fn, gray=False):
     if gray:
         plt.imsave(out_fn, out[:,:,0] * 0.5 + 0.5, cmap='gray')
     else:
-        plt.figure(figsize=(15, 15))
-
-        display_list = [input, x_hat[0]]
-        title = ['Input Image', 'Predicted Image']
-
-        for i in range(2):
-            plt.subplot(1, 2, i + 1)
-            plt.title(title[i])
-            plt.imshow(display_list[i] * 0.5 + 0.5)
-            plt.axis('off')
-        plt.savefig(out_fn)
-
-"""
-    plt.figure(figsize=(15, 15))
-    plt.imshow(x_hat[0] * 0.5 + 0.5)
-    plt.savefig(out_fn)
-    """
+        out = out * 0.5 + 0.5
+        plt.imsave(out_fn, out.numpy())
 
 """
 def generate_test_image(encoder, decoder, example_input, out_fn, gray=False):

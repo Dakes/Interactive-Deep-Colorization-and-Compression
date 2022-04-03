@@ -73,7 +73,39 @@ class Colorizer(object):
                                         ground_truth=gt_gen, locals=True, theme=True, segmented=True, overwrite=overwrite)
 
 
-    def smart_point_choice(self, method="nodist"):
+    def points_choose(self, method="nodist", multi_pass=False):
+        """
+        Chooses points with the colorizations already on disk.
+        Saves the newly chosen points in points_rgb & points_mask directories
+        Does not recolorize again
+        :param multi_pass: Load previous points from disk and add to them for method nodist
+        """
+        rec_path = self.dirs["final"] + self.dirs["recolorized"]
+        directory = os.fsencode(rec_path)
+        for file in os.listdir(directory):
+            filename = os.fsdecode(file)
+            if filename.endswith(self.ext):
+                gt = dutils.load_img(self.dirs["test_img"]+self.dirs["ground_truth"] + filename)
+                recolorization = dutils.load_img(self.dirs["final"] + self.dirs["recolorized"] + filename)
+                # generate & save new points
+                points_rgb, points_mask = None, None
+                if method == "nodist":
+                    if multi_pass:
+                        points_rgb = dutils.load_img(dirs["test_img"] + dirs["local_hints"] + filename)
+                        points_mask = dutils.load_img(dirs["test_img"] + dirs["local_mask"] + filename, gray=True)
+                    points_rgb, points_mask = local_points.get_points_nodist(gt, recolorization, points=self.num_points_pix,
+                                                                             points_rgb=points_rgb, points_mask=points_mask)
+                elif method == "slic":
+                    points_rgb, points_mask = local_points.get_points_slic(gt, recolorization, points=self.num_points_pix)
+                elif method == "felzenszwalb":
+                    points_rgb, points_mask = local_points.get_points_felzenszwalb(gt, recolorization, points=self.num_points_pix)
+                else:
+                    print("Error method", method, "not valid. Exiting. ")
+                    exit()
+                preprocess.cache_img(points_rgb, dirs["test_img"] + dirs["local_hints"] + filename, overwrite=True)
+                preprocess.cache_img(points_mask, dirs["test_img"] + dirs["local_mask"] + filename, overwrite=True)
+
+    def smart_point_recolorize(self, method="nodist"):
         # reset local cues, to make a global only colorization, to create error map
         preprocess.preprocess_color(num_points_pix=0, num_points_theme=self.num_points_theme,
                                     random_crop=self.rancom_crop, set="test_img",
@@ -81,28 +113,27 @@ class Colorizer(object):
                                     overwrite=True)
         # self.recolorize_all(shape=None)
         self.recolorize()
+        self.points_choose(method)
+        self.recolorize()
 
-        rec_path = self.dirs["final"] + self.dirs["recolorized"]
-        directory = os.fsencode(rec_path)
-        for file in os.listdir(directory):
-            filename = os.fsdecode(file)
-            if filename.endswith(self.ext):
-                gt = dutils.load_img(self.dirs["test_img"]+self.dirs["ground_truth"] + filename)
-                theme_rec = dutils.load_img(self.dirs["final"] + self.dirs["recolorized"] + filename)
-                # generate & save new points
-                points_rgb, points_mask = None, None
-                if method == "nodist":
-                    points_rgb, points_mask = local_points.get_points_nodist(gt, theme_rec, points=self.num_points_pix)
-                elif method == "slic":
-                    points_rgb, points_mask = local_points.get_points_slic(gt, theme_rec, points=self.num_points_pix)
-                elif method == "felzenszwalb":
-                    points_rgb, points_mask = local_points.get_points_felzenszwalb(gt, theme_rec, points=self.num_points_pix)
-                else:
-                    print("Error method", method, "not valid. Exiting. ")
-                    exit()
-                preprocess.cache_img(points_rgb, dirs["test_img"] + dirs["local_hints"] + filename, overwrite=True)
-                preprocess.cache_img(points_mask, dirs["test_img"] + dirs["local_mask"] + filename, overwrite=True)
+    def multi_pass_recolorize(self, num_passes=2, num_points=100, method="nodist", reset_local=True):
+        points_per_pass = int(num_points/num_passes)
 
+        if reset_local:
+            # reset local cues, to make a global only colorization
+            preprocess.preprocess_color(num_points_pix=0, num_points_theme=self.num_points_theme,
+                                        random_crop=self.rancom_crop, set="test_img",
+                                        ground_truth=False, locals=True, theme=False, segmented=False,
+                                        overwrite=True)
+            self.recolorize()
+
+        for pas in range(num_passes):  # range(220, 301, 10):
+            # on last iteration fill up with remaining points. (In case of rounding error)
+            if pas+1 >= num_passes:
+                points_per_pass = points_per_pass + (num_points - (points_per_pass*num_passes))
+            self.num_points_pix = points_per_pass
+            self.points_choose(method, multi_pass=True)
+            self.recolorize()
 
     def recolorize(self, fp="", shape=(256, 256)):
         """
@@ -229,11 +260,79 @@ if __name__ == "__main__":
     # os.environ["CUDA_VISIBLE_DEVICES"]="-1"
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-    c = Colorizer(num_points=6, num_points_pix=100, random_crop=256)
+    # c = Colorizer(num_points=6, num_points_pix=100, random_crop=256)
     # c.main()
-    c.color_cue_gen(overwrite=False, gt_gen=False)
-    c.smart_point_choice(method="nodist")
-    c.recolorize()
-    # c.recolorize_all(shape=None)
-    # c.recolorize("res/img/test/original_img/20191207_115205.jpg")
+    # c.color_cue_gen(overwrite=False, gt_gen=False)
+    # c.smart_point_choice("slic")
+    # c.recolorize()
 
+    # save_path = c.dirs["final"] + c.dirs["recolorized"]
+    methods = ["nodist"]  # ["slic", "felzenszwalb", "nodist"]
+    point_list = [350, 400, 450, 475, 500]  # [280, 290, 300]
+
+
+    def run(point_list):
+        c = Colorizer(num_points=6, num_points_pix=100, random_crop=256)
+        save_path = c.dirs["final"] + c.dirs["recolorized"]
+        methods = ["nodist"]  #["slic", "felzenszwalb", "nodist"]
+        
+        for num_points in point_list:  # range(220, 301, 10):
+            for method in methods:
+                c.num_points_pix = num_points
+                c.smart_point_recolorize(method=method)
+                new_path = c.dirs["final"] + method + "/" + "recolorized_" + method + "_" + str(num_points)
+                os.makedirs(new_path, exist_ok=True)
+                try:
+                    os.rename(save_path, new_path)
+                except OSError:
+                    pass
+                os.makedirs(save_path, exist_ok=True)
+        point_list.remove(num_points)
+
+    def run_slic_mult(passes=2):
+        c = Colorizer(num_points=6, num_points_pix=100, random_crop=256)
+        save_path = c.dirs["final"] + c.dirs["recolorized"]
+        c.num_points_pix = 50
+        c.smart_point_recolorize(method="slic")
+        c.multi_pass_recolorize(num_passes=2, num_points=50, reset_local=False)
+        new_path = c.dirs["final"] + "slic+multnodist" + "/" + "recolorized_" + "slic+multnodist" + "_" + "50_50_2"
+        os.makedirs(new_path, exist_ok=True)
+        try:
+            os.rename(save_path, new_path)
+        except OSError:
+            pass
+        os.makedirs(save_path, exist_ok=True)
+
+    def run_mult(pass_list):
+        c = Colorizer(num_points=6, num_points_pix=100, random_crop=256)
+        save_path = c.dirs["final"] + c.dirs["recolorized"]
+        methods = ["nodist"]  #["slic", "felzenszwalb", "nodist"]
+
+        for pas in pass_list:
+            c.multi_pass_recolorize(num_passes=pas)
+
+            new_path = c.dirs["final"] + "nodist_multi" + "/" + "recolorized_" + "nodist_multi" + "_" + str(pas)
+            os.makedirs(new_path, exist_ok=True)
+            try:
+                os.rename(save_path, new_path)
+            except OSError:
+                pass
+            os.makedirs(save_path, exist_ok=True)
+            pass_list.remove(pas)
+
+    pass_list_1 = [1, 2, 3, 4, 5, 6, 7]
+    pass_list_2 = [8, 9, 10]
+    l = [4]  #pass_list_1
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    run_slic_mult(passes=2)
+    #while len(l) > 0:
+        #run_mult(l)
+    """
+    try:
+        # run(point_list)
+        run_mult(l)
+    except:
+        os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+        # run(point_list)
+        run_mult(l)
+    """

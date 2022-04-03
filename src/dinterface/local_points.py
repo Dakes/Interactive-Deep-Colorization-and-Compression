@@ -136,15 +136,18 @@ def _subtract_from_em(em, y, x, radius=10, scale=3.5):
     return em
 
 
-def get_points_nodist(rgb_img, theme_img, points=100, radius=10, scale=3.5, plot=False):
+def get_points_nodist(rgb_img, theme_img, points=100, radius=10, scale=3.5, plot=False, points_rgb=None, points_mask=None):
     """
     Choose points by subtracting normal distribution from areas with highest error and choose points there.
-    TODO: implement second pass (maybe not here, but in colorize?)
+    :param points_rgb, points_mask: arrays to add to. If None (default), creates empty ones
     """
     em = get_error_map(rgb_img, theme_img, one_channel=True)
+
     h, w, c = rgb_img.shape
-    points_mask = np.zeros([h, w], dtype=np.uint8)
-    points_rgb = np.zeros([h, w, c], dtype=np.uint8)
+    if points_mask is None:
+        points_mask = np.zeros([h, w], dtype=np.uint8)
+    if points_rgb is None:
+        points_rgb = np.zeros([h, w, c], dtype=np.uint8)
 
     for i in range(points):
         y, x = np.unravel_index(em.argmax(), em.shape)
